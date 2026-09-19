@@ -12,6 +12,7 @@ spec:
     chart: airbyte
     targetRevision: 1.9.3
     helm:
+      skipCrds: true
       values: |
         global:
           database:
@@ -76,9 +77,16 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: ingestion
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: airbyte-minio
+      jsonPointers:
+        - /spec
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
