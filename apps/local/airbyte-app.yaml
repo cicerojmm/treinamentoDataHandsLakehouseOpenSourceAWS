@@ -28,6 +28,10 @@ spec:
               log: airbyte-storage
               state: airbyte-storage
               workloadOutput: airbyte-storage
+          minio:
+            endpoint: http://minio-local-hl.data-platform.svc.cluster.local:9000
+            accessKeyId: minio
+            secretAccessKey: minio123
 
         webapp:
           enabled: true
