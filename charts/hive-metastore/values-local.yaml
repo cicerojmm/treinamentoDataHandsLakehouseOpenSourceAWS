@@ -1,0 +1,30 @@
+# Hive Metastore configuration for local environment
+image:
+  repository: apache/hive
+  tag: 4.0.0
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 9083
+
+postgres:
+  host: hive-metastore-postgres.data-platform.svc.cluster.local
+  port: 5432
+  database: metastore
+  username: hive
+  password: hive123
+
+minio:
+  endpoint: http://minio-local-hl.data-platform.svc.cluster.local:9000
+  accessKey: minio
+  secretKey: minio123
+  warehouseDir: s3a://warehouse
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi

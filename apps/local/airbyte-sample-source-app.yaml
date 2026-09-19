@@ -1,0 +1,113 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: airbyte-sample-source
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: postgresql
+    targetRevision: 16.4.15
+    helm:
+      values: |
+        fullnameOverride: sample-source-postgres
+        auth:
+          database: sample_db
+          username: sample_user
+          password: sample123
+        primary:
+          persistence:
+            size: 2Gi
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          initdb:
+            scripts:
+              init.sql: |
+                -- Sample data for testing
+                CREATE TABLE IF NOT EXISTS customers (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    email VARCHAR(100) UNIQUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS products (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    price DECIMAL(10,2) NOT NULL,
+                    category VARCHAR(50),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS orders (
+                    id SERIAL PRIMARY KEY,
+                    customer_id INTEGER REFERENCES customers(id),
+                    total_amount DECIMAL(10,2) NOT NULL,
+                    status VARCHAR(20) DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS order_items (
+                    id SERIAL PRIMARY KEY,
+                    order_id INTEGER REFERENCES orders(id),
+                    product_id INTEGER REFERENCES products(id),
+                    quantity INTEGER NOT NULL,
+                    unit_price DECIMAL(10,2) NOT NULL
+                );
+
+                -- Insert sample customers
+                INSERT INTO customers (name, email) VALUES
+                ('Alice Silva', 'alice@example.com'),
+                ('Bob Santos', 'bob@example.com'),
+                ('Carol Oliveira', 'carol@example.com'),
+                ('David Costa', 'david@example.com'),
+                ('Eva Pereira', 'eva@example.com');
+
+                -- Insert sample products
+                INSERT INTO products (name, price, category) VALUES
+                ('Laptop Pro', 2500.00, 'Electronics'),
+                ('Wireless Mouse', 89.90, 'Electronics'),
+                ('USB-C Hub', 149.00, 'Electronics'),
+                ('Standing Desk', 899.00, 'Furniture'),
+                ('Ergonomic Chair', 1200.00, 'Furniture'),
+                ('Monitor 27"', 1500.00, 'Electronics'),
+                ('Keyboard Mechanical', 350.00, 'Electronics'),
+                ('Webcam HD', 299.00, 'Electronics');
+
+                -- Insert sample orders
+                INSERT INTO orders (customer_id, total_amount, status) VALUES
+                (1, 2589.90, 'completed'),
+                (2, 899.00, 'completed'),
+                (3, 1849.00, 'processing'),
+                (1, 350.00, 'completed'),
+                (4, 3700.00, 'pending'),
+                (5, 149.00, 'completed');
+
+                -- Insert sample order items
+                INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES
+                (1, 1, 1, 2500.00),
+                (1, 2, 1, 89.90),
+                (2, 4, 1, 899.00),
+                (3, 6, 1, 1500.00),
+                (3, 7, 1, 350.00),
+                (4, 7, 1, 350.00),
+                (5, 1, 1, 2500.00),
+                (5, 5, 1, 1200.00),
+                (6, 3, 1, 149.00);
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingestion
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

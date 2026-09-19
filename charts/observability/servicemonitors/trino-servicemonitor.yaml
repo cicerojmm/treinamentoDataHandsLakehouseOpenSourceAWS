@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: trino
+  namespace: observability
+  labels:
+    app: trino
+spec:
+  namespaceSelector:
+    matchNames:
+      - query-engine
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trino
+  endpoints:
+    - port: http
+      path: /v1/info
+      interval: 30s

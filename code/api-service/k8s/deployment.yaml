@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lakehouse-api
+  namespace: data-platform
+  labels:
+    app: lakehouse-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lakehouse-api
+  template:
+    metadata:
+      labels:
+        app: lakehouse-api
+    spec:
+      imagePullSecrets:
+        - name: ecr-pull-secret
+      containers:
+        - name: api
+          image: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/api-service:spec010-202609171128
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MINIO_ENDPOINT
+              value: "minio-local-hl.data-platform.svc.cluster.local:9000"
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lakehouse-api-secret
+                  key: minio-access-key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lakehouse-api-secret
+                  key: minio-secret-key
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lakehouse-api-secret
+                  key: api-key
+            - name: MINIO_BUCKET
+              value: "warehouse"
+            - name: ICEBERG_SCHEMA
+              value: "gold"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -1,0 +1,51 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: "Raw Parquet data from Airbyte in MinIO bronze bucket"
+    database: hive_bronze
+    schema: movielens
+    tables:
+      - name: links
+        description: "IMDB and TMDB IDs for movies"
+        columns:
+          - name: movieid
+            description: "Movie ID"
+          - name: imdbid
+            description: "IMDB ID"
+          - name: tmdbid
+            description: "TMDB ID"
+
+      - name: movies
+        description: "Movie titles and genres"
+        columns:
+          - name: movieid
+            description: "Movie ID"
+          - name: title
+            description: "Movie title with year"
+          - name: genres
+            description: "Pipe-separated genres"
+
+      - name: ratings
+        description: "User ratings"
+        columns:
+          - name: userid
+            description: "User ID"
+          - name: movieid
+            description: "Movie ID"
+          - name: rating
+            description: "Rating (0.5-5.0)"
+          - name: timestamp
+            description: "Unix timestamp"
+
+      - name: tags
+        description: "User tags for movies"
+        columns:
+          - name: userid
+            description: "User ID"
+          - name: movieid
+            description: "Movie ID"
+          - name: tag
+            description: "Tag text"
+          - name: timestamp
+            description: "Unix timestamp"

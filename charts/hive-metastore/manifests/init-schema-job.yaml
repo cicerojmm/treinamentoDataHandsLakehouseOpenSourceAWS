@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hive-metastore-init-schema
+  namespace: data-platform
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Aguardando Postgres..."
+              until nc -z hive-metastore-postgres.data-platform.svc.cluster.local 5432; do
+                sleep 5
+              done
+              echo "Postgres disponível!"
+        - name: download-postgres-driver
+          image: curlimages/curl:8.5.0
+          command:
+            - sh
+            - -c
+            - |
+              curl -L -o /drivers/postgresql-42.7.3.jar \
+                https://jdbc.postgresql.org/download/postgresql-42.7.3.jar
+              echo "Driver PostgreSQL baixado!"
+          volumeMounts:
+            - name: jdbc-drivers
+              mountPath: /drivers
+      containers:
+        - name: init-schema
+          image: apache/hive:4.0.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Verificando se schema já existe..."
+
+              # Tenta rodar schematool -info para verificar se o schema existe
+              if /opt/hive/bin/schematool -dbType postgres -info 2>&1 | grep -q "Metastore schema version"; then
+                echo "Schema já existe, pulando inicialização."
+              else
+                echo "Inicializando schema do Hive Metastore..."
+                /opt/hive/bin/schematool -dbType postgres -initSchema
+                echo "Schema inicializado com sucesso!"
+              fi
+          env:
+            - name: HIVE_HOME
+              value: /opt/hive
+            - name: HIVE_AUX_JARS_PATH
+              value: /drivers
+          volumeMounts:
+            - name: hive-config
+              mountPath: /opt/hive/conf/hive-site.xml
+              subPath: hive-site.xml
+            - name: jdbc-drivers
+              mountPath: /drivers
+      volumes:
+        - name: hive-config
+          configMap:
+            name: hive-metastore-config
+        - name: jdbc-drivers
+          emptyDir: {}

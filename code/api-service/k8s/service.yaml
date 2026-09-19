@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: lakehouse-api
+  namespace: data-platform
+  labels:
+    app: lakehouse-api
+spec:
+  type: ClusterIP
+  selector:
+    app: lakehouse-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http

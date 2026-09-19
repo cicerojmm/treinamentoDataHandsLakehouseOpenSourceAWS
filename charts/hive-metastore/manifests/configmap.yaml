@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hive-metastore-config
+  namespace: data-platform
+data:
+  hive-site.xml: |
+    <?xml version="1.0"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    <configuration>
+      <!-- Metastore -->
+      <property>
+        <name>hive.metastore.uris</name>
+        <value>thrift://hive-metastore.data-platform.svc.cluster.local:9083</value>
+      </property>
+
+      <!-- Database -->
+      <property>
+        <name>javax.jdo.option.ConnectionURL</name>
+        <value>jdbc:postgresql://hive-metastore-postgres.data-platform.svc.cluster.local:5432/metastore</value>
+      </property>
+      <property>
+        <name>javax.jdo.option.ConnectionDriverName</name>
+        <value>org.postgresql.Driver</value>
+      </property>
+      <property>
+        <name>javax.jdo.option.ConnectionUserName</name>
+        <value>hive</value>
+      </property>
+      <property>
+        <name>javax.jdo.option.ConnectionPassword</name>
+        <value>hive123</value>
+      </property>
+
+      <!-- Warehouse -->
+      <property>
+        <name>hive.metastore.warehouse.dir</name>
+        <value>s3://warehouse</value>
+      </property>
+
+      <!-- S3 / MinIO configuration for Trino native S3 compatibility -->
+      <property>
+        <name>fs.s3.endpoint</name>
+        <value>http://minio-local-hl.data-platform.svc.cluster.local:9000</value>
+      </property>
+      <property>
+        <name>fs.s3.access.key</name>
+        <value>minio</value>
+      </property>
+      <property>
+        <name>fs.s3.secret.key</name>
+        <value>minio123</value>
+      </property>
+      <property>
+        <name>fs.s3.path.style.access</name>
+        <value>true</value>
+      </property>
+
+      <!-- S3A fallback for Hive operations -->
+      <property>
+        <name>fs.s3a.endpoint</name>
+        <value>http://minio-local-hl.data-platform.svc.cluster.local:9000</value>
+      </property>
+      <property>
+        <name>fs.s3a.access.key</name>
+        <value>minio</value>
+      </property>
+      <property>
+        <name>fs.s3a.secret.key</name>
+        <value>minio123</value>
+      </property>
+      <property>
+        <name>fs.s3a.path.style.access</name>
+        <value>true</value>
+      </property>
+      <property>
+        <name>fs.s3a.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+      </property>
+      <property>
+        <name>fs.s3a.connection.ssl.enabled</name>
+        <value>false</value>
+      </property>
+
+      <!-- Map s3:// to s3a:// for Hive operations -->
+      <property>
+        <name>fs.s3.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+      </property>
+
+      <!-- Schema verification -->
+      <property>
+        <name>datanucleus.schema.autoCreateAll</name>
+        <value>false</value>
+      </property>
+      <property>
+        <name>hive.metastore.schema.verification</name>
+        <value>true</value>
+      </property>
+    </configuration>
+
+  metastore-log4j2.properties: |
+    status = INFO
+    name = MetastoreLog4j2
+    appender.console.type = Console
+    appender.console.name = console
+    appender.console.target = SYSTEM_ERR
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = %d{ISO8601} %5p [%t] %c{2}: %m%n
+    rootLogger.level = INFO
+    rootLogger.appenderRefs = console
+    rootLogger.appenderRef.console.ref = console

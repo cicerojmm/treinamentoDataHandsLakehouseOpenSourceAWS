@@ -1,0 +1,63 @@
+# Trino Helm Chart values for local environment
+# Chart: trino/trino
+
+image:
+  repository: trinodb/trino
+  tag: "480"
+
+server:
+  workers: 0
+
+coordinator:
+  config:
+    nodeScheduler:
+      includeCoordinator: true
+  resources:
+    limits:
+      memory: 2Gi
+  livenessProbe:
+    initialDelaySeconds: 300
+  readinessProbe:
+    initialDelaySeconds: 300
+  startupProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 30
+    failureThreshold: 60
+
+additionalCatalogs:
+  iceberg: |
+    connector.name=iceberg
+    iceberg.catalog.type=jdbc
+    iceberg.jdbc-catalog.driver-class=org.postgresql.Driver
+    iceberg.jdbc-catalog.connection-url=jdbc:postgresql://hive-metastore-postgres.data-platform.svc.cluster.local:5432/iceberg_catalog
+    iceberg.jdbc-catalog.connection-user=hive
+    iceberg.jdbc-catalog.connection-password=hive123
+    iceberg.jdbc-catalog.catalog-name=iceberg
+    iceberg.jdbc-catalog.default-warehouse-dir=s3://warehouse
+    fs.native-s3.enabled=true
+    s3.endpoint=http://minio-local-hl.data-platform.svc.cluster.local:9000
+    s3.path-style-access=true
+    s3.region=us-east-1
+    s3.aws-access-key=minio
+    s3.aws-secret-key=minio123
+  hive_bronze: |
+    connector.name=hive
+    hive.metastore=file
+    hive.metastore.catalog.dir=s3://bronze/metastore
+    hive.non-managed-table-writes-enabled=true
+    fs.native-s3.enabled=true
+    s3.endpoint=http://minio-local-hl.data-platform.svc.cluster.local:9000
+    s3.path-style-access=true
+    s3.region=us-east-1
+    s3.aws-access-key=minio
+    s3.aws-secret-key=minio123
+  postgres_source: |
+    connector.name=postgresql
+    connection-url=jdbc:postgresql://sample-source-postgres.ingestion.svc.cluster.local:5432/movielens
+    connection-user=postgres
+    connection-password=ljlxGwVf5woP5qIdtjzul2Ta
+
+service:
+  type: ClusterIP
+  port: 8080

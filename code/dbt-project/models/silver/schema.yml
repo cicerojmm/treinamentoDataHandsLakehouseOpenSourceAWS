@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: silver_movies
+    description: "Cleaned and enriched movie data"
+    columns:
+      - name: movie_id
+        description: "Unique movie identifier"
+        tests:
+          - unique
+          - not_null
+      - name: title_clean
+        description: "Movie title without year"
+      - name: release_year
+        description: "Year of release"
+      - name: genres
+        description: "Pipe-separated genres"
+
+  - name: silver_ratings
+    description: "Cleaned user ratings with datetime"
+    columns:
+      - name: user_id
+        description: "User identifier"
+        tests:
+          - not_null
+      - name: movie_id
+        description: "Movie identifier"
+        tests:
+          - not_null
+      - name: rating
+        description: "Rating value (0.5-5.0)"
+        tests:
+          - not_null
+
+  - name: silver_links
+    description: "External movie links (IMDB, TMDB)"
+    columns:
+      - name: movie_id
+        description: "Unique movie identifier"
+        tests:
+          - unique
+          - not_null
+      - name: imdb_url
+        description: "Full IMDB URL"
+      - name: tmdb_url
+        description: "Full TMDB URL"
+
+  - name: silver_tags
+    description: "Cleaned user tags with sentiment analysis"
+    columns:
+      - name: user_id
+        description: "User identifier"
+        tests:
+          - not_null
+      - name: movie_id
+        description: "Movie identifier"
+        tests:
+          - not_null
+      - name: tag_normalized
+        description: "Lowercase trimmed tag"
+        tests:
+          - not_null

@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ecr-token-refresh
+  namespace: data-platform
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-credentials
+  namespace: data-platform
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: "REPLACE_WITH_ACCESS_KEY"
+  AWS_SECRET_ACCESS_KEY: "REPLACE_WITH_SECRET_KEY"
+  AWS_REGION: "us-east-2"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ecr-token-refresh
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ecr-token-refresh
+subjects:
+  - kind: ServiceAccount
+    name: ecr-token-refresh
+    namespace: data-platform
+roleRef:
+  kind: ClusterRole
+  name: ecr-token-refresh
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ecr-token-refresh
+  namespace: data-platform
+spec:
+  schedule: "0 */10 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: ecr-token-refresh
+          restartPolicy: OnFailure
+          containers:
+            - name: refresh
+              image: amazon/aws-cli:latest
+              envFrom:
+                - secretRef:
+                    name: aws-credentials
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -e
+                  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+                  ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                  TOKEN=$(aws ecr get-login-password --region ${AWS_REGION})
+
+                  for NS in data-platform orchestration ingestion; do
+                    kubectl delete secret ecr-pull-secret -n $NS 2>/dev/null || true
+                    kubectl create secret docker-registry ecr-pull-secret \
+                      --docker-server=$ECR_REGISTRY \
+                      --docker-username=AWS \
+                      --docker-password=$TOKEN \
+                      -n $NS
+                  done

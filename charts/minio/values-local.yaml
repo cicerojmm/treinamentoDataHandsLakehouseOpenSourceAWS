@@ -1,0 +1,29 @@
+tenant:
+  name: minio-local
+  pools:
+    - servers: 1
+      name: pool-0
+      volumesPerServer: 1
+      size: 20Gi
+      storageClassName: standard
+  mountPath: /data
+
+  certificate:
+    requestAutoCert: false
+
+  prometheusOperator: false
+
+  env:
+    - name: MINIO_BROWSER
+      value: "on"
+
+secrets:
+  name: minio-local-secret
+  accessKey: minio
+  secretKey: minio123
+
+ingress:
+  api:
+    enabled: false
+  console:
+    enabled: false

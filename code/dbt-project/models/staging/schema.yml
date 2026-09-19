@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: stg_movies
+    description: "Staged movies data with basic cleaning"
+    columns:
+      - name: movie_id
+        description: "Movie identifier"
+        tests:
+          - not_null
+          - unique
+      - name: title
+        description: "Movie title"
+      - name: genres
+        description: "Pipe-separated genres"
+
+  - name: stg_ratings
+    description: "Staged ratings data with basic cleaning"
+    columns:
+      - name: user_id
+        description: "User identifier"
+        tests:
+          - not_null
+      - name: movie_id
+        description: "Movie identifier"
+        tests:
+          - not_null
+      - name: rating
+        description: "Rating value"
+        tests:
+          - not_null
+      - name: rating_timestamp
+        description: "Unix timestamp of rating"
+
+  - name: stg_links
+    description: "Staged links data with basic cleaning"
+    columns:
+      - name: movie_id
+        description: "Movie identifier"
+        tests:
+          - not_null
+          - unique
+      - name: imdb_id
+        description: "IMDB identifier"
+      - name: tmdb_id
+        description: "TMDB identifier"
+
+  - name: stg_tags
+    description: "Staged tags data with basic cleaning"
+    columns:
+      - name: user_id
+        description: "User identifier"
+        tests:
+          - not_null
+      - name: movie_id
+        description: "Movie identifier"
+        tests:
+          - not_null
+      - name: tag
+        description: "User tag"
+        tests:
+          - not_null
+      - name: tag_timestamp
+        description: "Unix timestamp of tag"

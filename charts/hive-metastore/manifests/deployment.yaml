@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hive-metastore
+  namespace: data-platform
+  labels:
+    app: hive-metastore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hive-metastore
+  template:
+    metadata:
+      labels:
+        app: hive-metastore
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Aguardando Postgres..."
+              until nc -z hive-metastore-postgres.data-platform.svc.cluster.local 5432; do
+                sleep 5
+              done
+              echo "Postgres disponível!"
+        - name: download-postgres-driver
+          image: curlimages/curl:8.5.0
+          command:
+            - sh
+            - -c
+            - |
+              curl -L -o /drivers/postgresql-42.7.3.jar \
+                https://jdbc.postgresql.org/download/postgresql-42.7.3.jar
+              echo "Driver PostgreSQL baixado!"
+          volumeMounts:
+            - name: jdbc-drivers
+              mountPath: /drivers
+      containers:
+        - name: metastore
+          image: apache/hive:4.0.0
+          command:
+            - /opt/hive/bin/hive
+            - --service
+            - metastore
+          ports:
+            - containerPort: 9083
+              name: thrift
+          env:
+            - name: HIVE_HOME
+              value: /opt/hive
+            - name: SERVICE_NAME
+              value: metastore
+            - name: HIVE_AUX_JARS_PATH
+              value: /drivers
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: hive-config
+              mountPath: /opt/hive/conf/hive-site.xml
+              subPath: hive-site.xml
+            - name: jdbc-drivers
+              mountPath: /drivers
+          readinessProbe:
+            tcpSocket:
+              port: 9083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 9083
+            initialDelaySeconds: 60
+            periodSeconds: 20
+      volumes:
+        - name: hive-config
+          configMap:
+            name: hive-metastore-config
+        - name: jdbc-drivers
+          emptyDir: {}

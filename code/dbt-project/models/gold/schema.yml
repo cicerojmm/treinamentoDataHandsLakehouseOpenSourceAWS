@@ -1,0 +1,88 @@
+version: 2
+
+models:
+  - name: gold_movie_analytics
+    description: "Complete movie analytics with ratings and engagement metrics"
+    columns:
+      - name: movie_id
+        description: "Unique movie identifier"
+        tests:
+          - unique
+          - not_null
+      - name: title
+        description: "Movie title"
+      - name: avg_rating
+        description: "Average user rating"
+      - name: popularity_score
+        description: "Composite popularity score"
+      - name: quality_tier
+        description: "Quality classification"
+
+  - name: gold_user_behavior
+    description: "User behavior patterns and segments"
+    columns:
+      - name: user_id
+        description: "Unique user identifier"
+        tests:
+          - unique
+          - not_null
+      - name: total_ratings
+        description: "Total number of ratings by user"
+      - name: user_segment
+        description: "User segment classification"
+      - name: rating_style
+        description: "User rating style"
+
+  - name: gold_genre_analytics
+    description: "Analytics aggregated by genre"
+    columns:
+      - name: genre
+        description: "Genre name"
+        tests:
+          - unique
+          - not_null
+      - name: total_ratings
+        description: "Total ratings for genre"
+      - name: avg_rating
+        description: "Average rating for genre"
+
+  - name: gold_temporal_trends
+    description: "Rating trends over time"
+    columns:
+      - name: trend_type
+        description: "Type of trend (monthly, hourly, day_of_week)"
+        tests:
+          - not_null
+      - name: period
+        description: "Period identifier"
+        tests:
+          - not_null
+
+  - name: gold_movie_recommendations
+    description: "Movie recommendations based on genre similarity"
+    columns:
+      - name: source_movie_id
+        description: "Source movie for recommendation"
+        tests:
+          - not_null
+      - name: recommended_movie_id
+        description: "Recommended movie"
+        tests:
+          - not_null
+      - name: recommendation_rank
+        description: "Rank of recommendation (1-10)"
+
+  - name: gold_external_links
+    description: "Movie external links with IMDB and TMDB URLs"
+    columns:
+      - name: movie_id
+        description: "Unique movie identifier"
+        tests:
+          - unique
+          - not_null
+      - name: imdb_url
+        description: "IMDB movie page URL"
+      - name: tmdb_url
+        description: "TMDB movie page URL"
+      - name: link_status
+        description: "Status of external links (Complete, Partial, Missing)"

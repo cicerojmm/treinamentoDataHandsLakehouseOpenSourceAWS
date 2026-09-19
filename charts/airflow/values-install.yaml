@@ -1,0 +1,69 @@
+executor: KubernetesExecutor
+
+images:
+  airflow:
+    repository: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/airflow-dags
+    tag: latest
+    pullPolicy: Always
+
+registry:
+  secretName: ecr-pull-secret
+
+postgresql:
+  enabled: false
+
+data:
+  metadataConnection:
+    user: airflow
+    pass: airflow123
+    protocol: postgresql
+    host: airflow-postgres.orchestration.svc.cluster.local
+    port: 5432
+    db: airflow
+
+webserver:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+scheduler:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+triggerer:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+workers:
+  replicas: 0
+
+createUserJob:
+  useHelmHooks: false
+
+migrateDatabaseJob:
+  useHelmHooks: false
+
+config:
+  core:
+    load_examples: 'False'
+  kubernetes:
+    namespace: orchestration
+    delete_worker_pods: 'True'

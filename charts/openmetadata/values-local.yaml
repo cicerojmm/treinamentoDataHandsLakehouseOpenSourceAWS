@@ -1,0 +1,41 @@
+# OpenMetadata values for local environment
+
+openmetadata:
+  config:
+    authentication:
+      provider: no-auth
+    database:
+      host: openmetadata-postgres.governance.svc.cluster.local
+      port: 5432
+      driverClass: org.postgresql.Driver
+      dbScheme: postgresql
+      databaseName: openmetadata
+      auth:
+        username: openmetadata
+        password:
+          secretRef: openmetadata-postgres-secret
+          secretKey: POSTGRES_PASSWORD
+    elasticsearch:
+      host: opensearch-cluster-master.governance.svc.cluster.local
+      port: 9200
+      scheme: http
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+ingress:
+  enabled: false
+
+airflow:
+  enabled: false
+
+postgresql:
+  enabled: false
+
+elasticsearch:
+  enabled: false

@@ -1,0 +1,15 @@
+# Placeholder para SPEC-017
+# Configuração para ambiente EKS com erasure coding distribuído
+tenant:
+  name: minio-eks
+  pools:
+    - servers: 4
+      name: pool-0
+      volumesPerServer: 4
+      size: 100Gi
+      storageClassName: gp3
+
+  certificate:
+    requestAutoCert: true
+
+  prometheusOperator: true

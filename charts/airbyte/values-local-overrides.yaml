@@ -1,0 +1,32 @@
+# Airbyte configuration overrides for local environment
+# Apply after Airbyte helm install to use existing MinIO
+
+# These values need to be patched into airbyte-airbyte-env ConfigMap:
+# kubectl patch cm airbyte-airbyte-env -n ingestion --type='json' -p='[
+#   {"op": "replace", "path": "/data/MINIO_ENDPOINT", "value": "http://minio-local-hl.data-platform.svc.cluster.local:9000"},
+#   {"op": "replace", "path": "/data/AWS_ACCESS_KEY_ID", "value": "minio"},
+#   {"op": "replace", "path": "/data/AWS_SECRET_ACCESS_KEY", "value": "minio123"}
+# ]'
+
+# Scale down internal MinIO (not needed):
+# kubectl scale statefulset airbyte-minio -n ingestion --replicas=0
+
+# Required bucket in existing MinIO:
+# - airbyte-storage
+
+storage:
+  type: minio
+  minio:
+    endpoint: http://minio-local-hl.data-platform.svc.cluster.local:9000
+    accessKeyId: minio
+    secretAccessKey: minio123
+  buckets:
+    activityPayload: airbyte-storage
+    auditLogging: airbyte-storage
+    log: airbyte-storage
+    state: airbyte-storage
+    workloadOutput: airbyte-storage
+
+# Disable internal MinIO
+minio:
+  enabled: false

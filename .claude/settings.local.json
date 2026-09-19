@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kubectl get *)",
+      "Bash(kubectl apply *)",
+      "Bash(kubectl wait *)",
+      "Bash(kubectl logs *)",
+      "Bash(kubectl describe *)",
+      "Bash(docker pull *)",
+      "Bash(kind load *)",
+      "Bash(kubectl delete *)",
+      "Bash(python3 -c \"import sys, json, base64; d=json.load\\(sys.stdin\\); print\\({k: base64.b64decode\\(v\\).decode\\(\\) for k,v in d.items\\(\\)}\\)\")",
+      "Bash(aws ecr *)",
+      "Bash(kubectl run mc-cleanup --rm --restart=Never -n data-platform --image=quay.io/minio/mc:latest --command -- sh -c ' *)",
+      "Bash(kubectl run mc-cleanup --restart=Never -n data-platform --image=quay.io/minio/mc:latest --command -- sh -c ' *)",
+      "Bash(pkill -f \"port-forward.*minio\")",
+      "Bash(kubectl port-forward *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:9090)",
+      "Bash(kubectl patch *)",
+      "Bash(helm repo *)",
+      "Bash(helm install *)",
+      "Bash(kubectl run *)",
+      "Bash(docker login *)",
+      "Bash(docker build *)",
+      "Bash(docker push *)",
+      "Bash(make destroy-local *)",
+      "Bash(scp *)",
+      "Bash(ssh *)",
+      "Bash(tar -czf /tmp/dbt-project.tar.gz code/dbt-project/)",
+      "Bash(export KUBECONFIG=/home/ciceromoura/.kube/config-lakehouse)",
+      "Bash(aws ec2 describe-instances *)",
+      "Bash(rsync *)",
+      "Bash(aws ec2 stop-instances *)",
+      "Bash(./build.sh v20260919110500 *)"
+    ]
+  }
+}
