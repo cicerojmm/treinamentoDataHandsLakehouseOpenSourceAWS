@@ -87,6 +87,11 @@ spec:
       name: airbyte-minio
       jsonPointers:
         - /spec
+    - group: ""
+      kind: ConfigMap
+      name: airbyte-airbyte-env
+      jsonPointers:
+        - /data/MINIO_ENDPOINT
   syncPolicy:
     automated:
       prune: true
