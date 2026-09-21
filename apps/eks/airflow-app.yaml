@@ -32,7 +32,7 @@ spec:
             user: airflow
             pass: airflow123
             protocol: postgresql
-            host: airflow-postgres.orchestration.svc.cluster.local
+            host: airflow-postgres.ingestion.svc.cluster.local
             port: 5432
             db: airflow
 

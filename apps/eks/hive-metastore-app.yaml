@@ -8,8 +8,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/OWNER/REPO.git
-    targetRevision: main
+    repoURL: https://github.com/cicerojmm/treinamentoDataHandsLakehouseOpenSourceAWS
+    targetRevision: HEAD
     path: charts/hive-metastore/manifests
   destination:
     server: https://kubernetes.default.svc
