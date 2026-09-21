@@ -54,13 +54,21 @@ spec:
         server:
           enabled: true
           replicaCount: 1
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 5
+          readinessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
+              cpu: 200m
               memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
 
         worker:
           enabled: true
