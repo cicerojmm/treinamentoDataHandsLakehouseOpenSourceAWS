@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openmetadata
+  namespace: argocd
+  labels:
+    environment: eks
+spec:
+  project: default
+  sources:
+    - repoURL: https://helm.open-metadata.org
+      chart: openmetadata
+      targetRevision: 1.5.4
+      helm:
+        valueFiles:
+          - $values/charts/openmetadata/values-local.yaml
+    - repoURL: https://github.com/cicerojmm/treinamentoDataHandsLakehouseOpenSourceAWS
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: governance
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

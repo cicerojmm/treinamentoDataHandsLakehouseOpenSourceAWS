@@ -1,0 +1,105 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: airflow
+  namespace: argocd
+  labels:
+    environment: eks
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  project: default
+  source:
+    repoURL: https://airflow.apache.org
+    chart: airflow
+    targetRevision: 1.15.0
+    helm:
+      values: |
+        executor: KubernetesExecutor
+
+        images:
+          airflow:
+            repository: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/airflow-dags
+            tag: latest
+            pullPolicy: Always
+
+        registry:
+          secretName: ecr-pull-secret
+
+        postgresql:
+          enabled: false
+
+        data:
+          metadataConnection:
+            user: airflow
+            pass: airflow123
+            protocol: postgresql
+            host: airflow-postgres.orchestration.svc.cluster.local
+            port: 5432
+            db: airflow
+
+        webserver:
+          replicas: 1
+          service:
+            type: ClusterIP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        scheduler:
+          replicas: 1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        triggerer:
+          enabled: true
+          replicas: 1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+        workers:
+          replicas: 0
+
+        createUserJob:
+          useHelmHooks: false
+
+        migrateDatabaseJob:
+          useHelmHooks: false
+
+        config:
+          core:
+            dags_folder: /opt/airflow/dags
+            load_examples: "False"
+          kubernetes:
+            namespace: ingestion
+            worker_container_repository: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/airflow-dags
+            worker_container_tag: latest
+            delete_worker_pods: "True"
+            delete_worker_pods_on_failure: "False"
+
+        extraEnv:
+          - name: AIRFLOW__CORE__LOAD_EXAMPLES
+            value: "False"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingestion
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

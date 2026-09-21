@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: minio-tenant
+  namespace: argocd
+  labels:
+    environment: eks
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://operator.min.io
+    chart: tenant
+    targetRevision: 6.0.4
+    helm:
+      values: |
+        tenant:
+          name: minio-eks
+          pools:
+            - servers: 1
+              name: pool-0
+              volumesPerServer: 1
+              size: 50Gi
+              storageClassName: gp3
+          mountPath: /data
+          certificate:
+            requestAutoCert: false
+          prometheusOperator: false
+          env:
+            - name: MINIO_BROWSER
+              value: "on"
+          configSecret:
+            name: minio-eks-env-configuration
+          configuration:
+            name: minio-eks-env-configuration
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data-platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

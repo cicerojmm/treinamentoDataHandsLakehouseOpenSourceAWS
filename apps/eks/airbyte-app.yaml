@@ -1,0 +1,103 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: airbyte
+  namespace: argocd
+  labels:
+    environment: eks
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+spec:
+  project: default
+  source:
+    repoURL: https://airbytehq.github.io/helm-charts
+    chart: airbyte
+    targetRevision: 1.9.3
+    helm:
+      skipCrds: true
+      values: |
+        global:
+          database:
+            host: airbyte-postgres.ingestion.svc.cluster.local
+            port: 5432
+            database: airbyte
+            user: airbyte
+            password: airbyte123
+          storage:
+            type: minio
+            storageSecretName: airbyte-storage-secret
+            bucket:
+              log: airbyte-storage
+              state: airbyte-storage
+              workloadOutput: airbyte-storage
+          minio:
+            endpoint: http://minio-eks-hl.data-platform.svc.cluster.local:9000
+            accessKeyId: minio
+            secretAccessKey: minio123
+
+        webapp:
+          enabled: true
+          replicaCount: 1
+          service:
+            type: NodePort
+            nodePort: 30088
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        server:
+          enabled: true
+          replicaCount: 1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        worker:
+          enabled: true
+          replicaCount: 1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+        temporal:
+          enabled: true
+          replicaCount: 1
+
+        postgresql:
+          enabled: false
+
+        minio:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingestion
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: airbyte-minio
+      jsonPointers:
+        - /spec
+    - group: ""
+      kind: ConfigMap
+      name: airbyte-airbyte-env
+      jsonPointers:
+        - /data/MINIO_ENDPOINT
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-of-apps
+  namespace: argocd
+  labels:
+    environment: eks
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/cicerojmm/treinamentoDataHandsLakehouseOpenSourceAWS.git
+    path: apps/eks
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  labels:
+    environment: eks
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

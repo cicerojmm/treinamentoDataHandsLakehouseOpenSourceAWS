@@ -1,0 +1,70 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trino
+  namespace: argocd
+  labels:
+    environment: eks
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+spec:
+  project: default
+  source:
+    repoURL: https://trinodb.github.io/charts
+    chart: trino
+    targetRevision: 0.31.0
+    helm:
+      values: |
+        image:
+          repository: trinodb/trino
+          tag: "480"
+
+        server:
+          workers: 0
+
+        coordinator:
+          config:
+            nodeScheduler:
+              includeCoordinator: true
+          resources:
+            limits:
+              memory: 2Gi
+          livenessProbe:
+            initialDelaySeconds: 300
+          readinessProbe:
+            initialDelaySeconds: 300
+          startupProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 30
+            failureThreshold: 60
+
+        additionalCatalogs:
+          iceberg: |
+            connector.name=iceberg
+            iceberg.catalog.type=jdbc
+            iceberg.jdbc-catalog.driver-class=org.postgresql.Driver
+            iceberg.jdbc-catalog.connection-url=jdbc:postgresql://hive-metastore-postgres.data-platform.svc.cluster.local:5432/iceberg_catalog
+            iceberg.jdbc-catalog.connection-user=hive
+            iceberg.jdbc-catalog.connection-password=hive123
+            iceberg.jdbc-catalog.catalog-name=iceberg
+            iceberg.jdbc-catalog.default-warehouse-dir=s3://gold/warehouse
+            fs.native-s3.enabled=true
+            s3.endpoint=http://minio-eks-hl.data-platform.svc.cluster.local:9000
+            s3.path-style-access=true
+            s3.region=us-east-1
+            s3.aws-access-key=minio
+            s3.aws-secret-key=minio123
+
+        service:
+          type: ClusterIP
+          port: 8080
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: query-engine
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
