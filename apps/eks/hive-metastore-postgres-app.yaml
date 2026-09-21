@@ -10,12 +10,12 @@ spec:
   source:
     repoURL: https://charts.bitnami.com/bitnami
     chart: postgresql
-    targetRevision: 16.4.15
+    targetRevision: 15.5.38
     helm:
       values: |
         fullnameOverride: hive-metastore-postgres
         image:
-          tag: 15.4.0-debian-11-r45
+          tag: 16.3.0-debian-12-r23
         auth:
           database: metastore
           username: hive
