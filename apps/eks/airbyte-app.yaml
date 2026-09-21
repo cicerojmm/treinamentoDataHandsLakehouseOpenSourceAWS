@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://airbytehq.github.io/helm-charts
     chart: airbyte
-    targetRevision: 1.9.3
+    targetRevision: 1.8.5
     helm:
       skipCrds: true
       parameters:
