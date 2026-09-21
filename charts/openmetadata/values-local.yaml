@@ -4,9 +4,6 @@ openmetadata:
   config:
     authentication:
       provider: basic
-      publicKeyUrls: []
-      authority: ""
-      clientId: ""
     database:
       host: openmetadata-postgres.governance.svc.cluster.local
       port: 5432
