@@ -13,6 +13,8 @@ spec:
     targetRevision: 16.4.15
     helm:
       values: |
+        image:
+          tag: 15.4.0-debian-11-r45
         fullnameOverride: airbyte-postgres
         auth:
           database: airbyte
