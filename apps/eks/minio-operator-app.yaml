@@ -3,8 +3,6 @@ kind: Application
 metadata:
   name: minio-operator
   namespace: argocd
-  labels:
-    environment: eks
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:

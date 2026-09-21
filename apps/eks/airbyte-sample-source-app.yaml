@@ -3,8 +3,6 @@ kind: Application
 metadata:
   name: airbyte-sample-source
   namespace: argocd
-  labels:
-    environment: eks
   annotations:
     argocd.argoproj.io/sync-wave: "7"
 spec:

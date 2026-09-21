@@ -3,8 +3,6 @@ kind: Application
 metadata:
   name: servicemonitors
   namespace: argocd
-  labels:
-    environment: eks
 spec:
   project: default
   source:

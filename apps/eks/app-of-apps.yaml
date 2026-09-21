@@ -3,8 +3,6 @@ kind: Application
 metadata:
   name: app-of-apps
   namespace: argocd
-  labels:
-    environment: eks
 spec:
   project: default
   source:
@@ -14,8 +12,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
-  labels:
-    environment: eks
   syncPolicy:
     automated:
       prune: true
