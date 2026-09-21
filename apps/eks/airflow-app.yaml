@@ -93,6 +93,8 @@ spec:
         migrateDatabaseJob:
           useHelmHooks: false
 
+        airflowLocalSettings: ""
+
         config:
           core:
             dags_folder: /opt/airflow/dags
@@ -100,7 +102,7 @@ spec:
           kubernetes:
             namespace: ingestion
             worker_container_repository: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/airflow-dags
-            worker_container_tag: latest
+            worker_container_tag: v20260921163358
             delete_worker_pods: "True"
             delete_worker_pods_on_failure: "False"
   destination:
