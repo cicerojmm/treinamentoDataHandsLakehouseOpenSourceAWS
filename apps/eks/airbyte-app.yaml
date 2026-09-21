@@ -18,6 +18,18 @@ spec:
           value: "0"
         - name: global.jobs.resources.requests.memory
           value: "0"
+        - name: server.livenessProbe.initialDelaySeconds
+          value: "120"
+        - name: server.livenessProbe.periodSeconds
+          value: "15"
+        - name: server.livenessProbe.failureThreshold
+          value: "5"
+        - name: server.readinessProbe.initialDelaySeconds
+          value: "60"
+        - name: server.readinessProbe.periodSeconds
+          value: "10"
+        - name: server.readinessProbe.failureThreshold
+          value: "5"
       values: |
         global:
           database:
@@ -54,14 +66,6 @@ spec:
         server:
           enabled: true
           replicaCount: 1
-          livenessProbe:
-            initialDelaySeconds: 60
-            periodSeconds: 15
-            failureThreshold: 5
-          readinessProbe:
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            failureThreshold: 5
           resources:
             requests:
               cpu: 200m
