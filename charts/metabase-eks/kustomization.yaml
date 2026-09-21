@@ -3,4 +3,4 @@ kind: Kustomization
 
 resources:
   - postgres.yaml
-  - ../metabase/metabase.yaml
+  - metabase.yaml
