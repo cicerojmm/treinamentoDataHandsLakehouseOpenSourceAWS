@@ -18,7 +18,7 @@ spec:
         images:
           airflow:
             repository: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/airflow-dags
-            tag: latest
+            tag: v20260921163358
             pullPolicy: Always
 
         registry:
