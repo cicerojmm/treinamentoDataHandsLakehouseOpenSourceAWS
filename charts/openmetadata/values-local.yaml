@@ -3,7 +3,10 @@
 openmetadata:
   config:
     authentication:
-      provider: no-auth
+      provider: basic
+      publicKeyUrls: []
+      authority: ""
+      clientId: ""
     database:
       host: openmetadata-postgres.governance.svc.cluster.local
       port: 5432
@@ -19,14 +22,6 @@ openmetadata:
       host: opensearch-cluster-master.governance.svc.cluster.local
       port: 9200
       scheme: http
-
-  resources:
-    requests:
-      cpu: 500m
-      memory: 1Gi
-    limits:
-      cpu: 1000m
-      memory: 2Gi
 
 ingress:
   enabled: false

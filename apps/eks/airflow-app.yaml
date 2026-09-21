@@ -88,10 +88,6 @@ spec:
             worker_container_tag: latest
             delete_worker_pods: "True"
             delete_worker_pods_on_failure: "False"
-
-        env:
-          - name: AIRFLOW__CORE__LOAD_EXAMPLES
-            value: "False"
   destination:
     server: https://kubernetes.default.svc
     namespace: ingestion
