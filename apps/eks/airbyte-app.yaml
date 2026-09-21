@@ -27,15 +27,12 @@ spec:
             user: airbyte
             password: airbyte123
           storage:
-            type: s3
+            type: minio
             storageSecretName: airbyte-storage-secret
             bucket:
               log: airbyte-storage
               state: airbyte-storage
               workloadOutput: airbyte-storage
-            s3:
-              region: us-east-2
-              authenticationType: credentials
 
         webapp:
           enabled: true

@@ -38,7 +38,8 @@
       "Bash(kubectl create *)",
       "Bash(git add *)",
       "Bash(git commit -m 'fix: usa storage type s3 no Airbyte \\(compatível com MinIO\\) *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git commit -m 'fix: reverte Airbyte para storage type minio *)"
     ]
   }
 }
