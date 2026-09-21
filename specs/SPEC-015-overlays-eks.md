@@ -74,9 +74,8 @@ Serviços expostos via LoadBalancer (NLB):
 | Replicas | 1 | 1 (testes) |
 
 ### 3.4 ECR Pull
-- IRSA configurado no SPEC-014 para pull de imagens
-- Remover `ecr-pull-secret` dos deployments
-- Adicionar `serviceAccountName` com role IRSA
+- Nodes já têm permissão via IAM Role (AmazonEC2ContainerRegistryReadOnly)
+- Não precisa de imagePullSecrets no EKS
 
 ### 3.5 MinIO no EKS
 - Mesmo Tenant config do local
@@ -87,58 +86,25 @@ Serviços expostos via LoadBalancer (NLB):
 ## 4. Critério de Aceite
 
 1. `kubectl get applications -n argocd` mostra todas as apps Synced/Healthy
-2. Todos os pods Running em seus namespaces:
-   ```bash
-   kubectl get pods -n data-platform
-   kubectl get pods -n ingestion
-   kubectl get pods -n governance
-   kubectl get pods -n observability
-   ```
-3. Serviços acessíveis via IP do LoadBalancer:
-   ```bash
-   kubectl get svc -A | grep LoadBalancer
-   # Cada EXTERNAL-IP deve responder na porta correta
-   ```
-4. Pipeline ponta a ponta funciona:
-   - Airbyte sync do postgres-sample → MinIO (bronze)
-   - Airflow DAG dbt_movielens executa com sucesso
-   - API retorna dados de gold
-5. MinIO buckets acessíveis via Trino:
-   ```sql
-   SHOW SCHEMAS FROM hive_bronze;
-   SHOW SCHEMAS FROM iceberg;
-   ```
+2. Todos os pods Running em seus namespaces
+3. Serviços acessíveis via IP do LoadBalancer
+4. Pipeline ponta a ponta funciona (Airbyte → Airflow → dbt → API)
+5. MinIO buckets acessíveis via Trino
 
 ## 5. Fora de escopo
 - DNS / TLS (sem domínio)
 - External Secrets (secrets estáticos para testes)
 - Autoscaling de nodes
 - Backups automatizados
-- Mudanças de código nos componentes
 
 ## 6. Rollback
 ```bash
-# Deletar apps do ArgoCD
 kubectl delete applications -n argocd -l environment=eks
-
-# Ou destruir cluster inteiro (SPEC-014)
-cd infra/terraform/envs/eks && terraform destroy
 ```
 
 ## 7. Comandos de validação
 ```bash
-# Verificar apps
 kubectl get applications -n argocd
-
-# Verificar pods
 kubectl get pods -A | grep -v kube-system
-
-# Obter IPs dos LoadBalancers
 kubectl get svc -A -o wide | grep LoadBalancer
-
-# Testar Trino
-kubectl exec -it -n data-platform deployment/trino-coordinator -- trino --execute "SHOW CATALOGS"
-
-# Testar API
-curl http://<API_LB_IP>:8000/health
 ```
