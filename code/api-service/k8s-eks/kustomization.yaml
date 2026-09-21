@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../k8s
+
+patches:
+  - target:
+      kind: Deployment
+      name: lakehouse-api
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "minio-eks-hl.data-platform.svc.cluster.local:9000"
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: "093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/api-service:v20260918204856"

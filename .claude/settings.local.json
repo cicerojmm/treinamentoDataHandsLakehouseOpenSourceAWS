@@ -31,7 +31,11 @@
       "Bash(aws ec2 describe-instances *)",
       "Bash(rsync *)",
       "Bash(aws ec2 stop-instances *)",
-      "Bash(./build.sh v20260919110500 *)"
+      "Bash(./build.sh v20260919110500 *)",
+      "Bash(aws eks *)",
+      "Bash(terraform plan *)",
+      "Bash(terraform apply *)",
+      "Bash(kubectl create *)"
     ]
   }
 }

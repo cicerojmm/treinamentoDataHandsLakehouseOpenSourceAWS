@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/cicerojmm/treinamentoDataHandsLakehouseOpenSourceAWS
     targetRevision: HEAD
-    path: code/api-service/k8s
+    path: code/api-service/k8s-eks
   destination:
     server: https://kubernetes.default.svc
     namespace: data-platform

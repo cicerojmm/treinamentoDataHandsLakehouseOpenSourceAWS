@@ -15,9 +15,11 @@ spec:
       labels:
         app: metabase
     spec:
+      imagePullSecrets:
+        - name: ecr-pull-secret
       containers:
         - name: metabase
-          image: metabase/metabase:v0.50.21
+          image: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/metabase:v20260919110500
           ports:
             - containerPort: 3000
           env:

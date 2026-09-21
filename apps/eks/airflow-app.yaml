@@ -89,7 +89,7 @@ spec:
             delete_worker_pods: "True"
             delete_worker_pods_on_failure: "False"
 
-        extraEnv:
+        env:
           - name: AIRFLOW__CORE__LOAD_EXAMPLES
             value: "False"
   destination:
