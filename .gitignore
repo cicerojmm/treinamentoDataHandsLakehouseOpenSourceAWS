@@ -58,3 +58,5 @@ credentials.json
 # Temp
 tmp/
 temp/
+infra/terraform/envs/eks/tfplan
+**/.terraform/
