@@ -24,7 +24,13 @@ ingress:
   enabled: false
 
 airflow:
-  enabled: false
+  enabled: true
+  airflow:
+    auth:
+      username: admin
+      password:
+        secretRef: openmetadata-airflow-secret
+        secretKey: password
 
 postgresql:
   enabled: false
