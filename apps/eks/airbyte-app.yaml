@@ -27,16 +27,15 @@ spec:
             user: airbyte
             password: airbyte123
           storage:
-            type: minio
+            type: s3
             storageSecretName: airbyte-storage-secret
             bucket:
               log: airbyte-storage
               state: airbyte-storage
               workloadOutput: airbyte-storage
-          minio:
-            endpoint: http://minio-eks-hl.data-platform.svc.cluster.local:9000
-            accessKeyId: minio
-            secretAccessKey: minio123
+            s3:
+              region: us-east-2
+              authenticationType: credentials
 
         webapp:
           enabled: true

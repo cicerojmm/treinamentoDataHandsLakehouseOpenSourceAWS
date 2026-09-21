@@ -35,7 +35,10 @@
       "Bash(aws eks *)",
       "Bash(terraform plan *)",
       "Bash(terraform apply *)",
-      "Bash(kubectl create *)"
+      "Bash(kubectl create *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'fix: usa storage type s3 no Airbyte \\(compatível com MinIO\\) *)",
+      "Bash(git push *)"
     ]
   }
 }
