@@ -34,7 +34,7 @@ spec:
               state: airbyte-storage
               workloadOutput: airbyte-storage
             s3:
-              region: ""
+              region: "us-east-1"
               authenticationType: credentials
 
         webapp:
