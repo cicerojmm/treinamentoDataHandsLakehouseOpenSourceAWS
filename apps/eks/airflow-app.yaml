@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://airflow.apache.org
     chart: airflow
-    targetRevision: 1.15.0
+    targetRevision: 1.22.0
     helm:
       values: |
         executor: KubernetesExecutor
