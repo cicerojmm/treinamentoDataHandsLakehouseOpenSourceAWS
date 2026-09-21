@@ -108,8 +108,8 @@ concluído no status abaixo.
 - [x] SPEC-011: Metabase — Implementado (BI conectado ao Trino)
 - [x] SPEC-012: Observabilidade — Implementado (kube-prometheus-stack + Grafana)
 - [x] SPEC-013: OpenMetadata — Implementado (catálogo + linhagem)
-- [ ] SPEC-014: CI/CD — Specify concluído, aguardando Plan
-- [ ] SPEC-015: Terraform EKS — Specify **incompleto**, bloqueado por decisões de negócio/custo
-- [ ] SPEC-016: Overlays EKS — Specify **incompleto**, bloqueado por SPEC-015 + decisões de domínio/TLS
+- [ ] SPEC-014: Terraform EKS — Specify completo, aguardando Plan
+- [ ] SPEC-015: Overlays EKS — Specify completo, aguardando SPEC-014
+- [ ] SPEC-016: CI/CD — Specify pendente
 
 (Atualizar esta seção ao final de cada fase de Validate bem-sucedida.)
