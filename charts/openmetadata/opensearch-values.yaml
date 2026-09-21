@@ -1,7 +1,7 @@
 # OpenSearch values for local environment
 
+singleNode: true
 replicas: 1
-minimumMasterNodes: 1
 
 resources:
   requests:
@@ -19,7 +19,6 @@ config:
   opensearch.yml: |
     cluster.name: openmetadata-cluster
     network.host: 0.0.0.0
-    discovery.type: single-node
     plugins.security.disabled: true
 
 extraEnvs:
