@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/cicerojmm/treinamentoDataHandsLakehouseOpenSourceAWS
     targetRevision: HEAD
-    path: charts/metabase
+    path: charts/metabase-eks
   destination:
     server: https://kubernetes.default.svc
     namespace: data-platform
