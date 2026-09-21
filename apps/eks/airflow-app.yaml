@@ -37,6 +37,10 @@ spec:
             db: airflow
 
         webserver:
+          enabled: false
+
+        apiServer:
+          enabled: true
           replicas: 1
           service:
             type: ClusterIP
