@@ -78,6 +78,9 @@ spec:
 
         minio:
           enabled: false
+
+        airbyteBootloader:
+          enabled: false
   destination:
     server: https://kubernetes.default.svc
     namespace: ingestion
