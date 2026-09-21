@@ -13,6 +13,11 @@ spec:
     targetRevision: 1.9.3
     helm:
       skipCrds: true
+      parameters:
+        - name: global.jobs.resources.requests.cpu
+          value: "0"
+        - name: global.jobs.resources.requests.memory
+          value: "0"
       values: |
         global:
           database:
@@ -102,3 +107,5 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - RespectIgnoreDifferences=true
+      - SkipDryRunOnMissingResource=true
+      - PruneLast=true
