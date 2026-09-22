@@ -21,6 +21,16 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: governance
+  # O chart gera openmetadata-db-secret com valor aleatorio a cada render,
+  # o que causa OutOfSync permanente mesmo sem mudanca real (nao usamos
+  # esse secret: senha do postgres vem de openmetadata-postgres-secret,
+  # ver values-local.yaml).
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: openmetadata-db-secret
+      jsonPointers:
+        - /data
   syncPolicy:
     automated:
       prune: true
