@@ -54,12 +54,12 @@ infra/terraform/envs/eks/
 - **Internet Gateway:** 1
 
 ### 3.2 EKS
-- **Versão Kubernetes:** 1.30 (última estável)
+- **Versão Kubernetes:** 1.32 (upgrade in-place 1.30 → 1.31 → 1.32; 1.30 saiu do suporte padrão)
 - **Endpoint:** público (para acesso via kubectl sem VPN)
 - **Node Group único:**
   - Nome: `general`
   - Tipo: **t3.large** (2 vCPU, 8GB RAM)
-  - Quantidade: **2 nodes** (mínimo para distribuir workloads)
+  - Quantidade: **3 nodes** (2 nodes não comportaram toda a plataforma)
   - Capacidade: On-Demand (sem Spot)
   - Disk: 50GB gp3 por node
 - **Add-ons gerenciados:**
@@ -86,11 +86,11 @@ infra/terraform/envs/eks/
 | Recurso | Especificação | Custo/Mês |
 |---------|---------------|-----------|
 | EKS Control Plane | 1 cluster | $73 |
-| EC2 (2x t3.large) | On-Demand | $120 |
+| EC2 (3x t3.large) | On-Demand | $180 |
 | NAT Gateway | 1 | $45 |
 | EBS (nodes + PVCs) | ~150GB gp3 | $14 |
 | Data Transfer | ~30GB | $3 |
-| **Total** | | **~$255/mês** |
+| **Total** | | **~$315/mês** |
 
 ### Para reduzir para ~$180/mês:
 - Usar t3.medium (1 vCPU, 4GB) em vez de t3.large
@@ -101,10 +101,15 @@ infra/terraform/envs/eks/
 1. `terraform init` e `terraform plan` executam sem erro
 2. `terraform apply` cria todos os recursos (~15 min)
 3. `aws eks update-kubeconfig --name data-platform-eks --region us-east-2` configura kubeconfig
-4. `kubectl get nodes` mostra 2 nodes em status Ready
+4. `kubectl get nodes` mostra 3 nodes em status Ready
 5. `kubectl get sc` mostra StorageClass gp3 como default
 6. Pod de teste consegue criar PVC e montar volume EBS
-7. Pod de teste consegue fazer pull de imagem do ECR (093499160510.dkr.ecr.us-east-2.amazonaws.com)
+7. Pods de teste conseguem fazer pull das imagens customizadas do ECR
+   (093499160510.dkr.ecr.us-east-2.amazonaws.com), com as tags exatas referenciadas
+   pelos manifests EKS (nunca `latest`):
+   - `data-platform/airflow-dags:v20260921163358` (apps/eks/airflow-app.yaml)
+   - `data-platform/api-service:v20260918204856` (code/api-service/k8s-eks/kustomization.yaml)
+   - `data-platform/metabase:v20260919110500` (charts/metabase-eks/metabase.yaml)
 
 ## 6. Fora de escopo
 - Deploy de aplicações (SPEC-015)
@@ -124,18 +129,17 @@ Destrói todos os recursos criados. Dados em EBS serão perdidos.
 aws eks update-kubeconfig --name data-platform-eks --region us-east-2
 kubectl get nodes
 kubectl get sc
-kubectl create -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-ecr-pull
-spec:
-  containers:
-  - name: test
-    image: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/api-service:latest
-    command: ["sleep", "30"]
-  restartPolicy: Never
-EOF
-kubectl get pod test-ecr-pull
-kubectl delete pod test-ecr-pull
+# Pull das imagens customizadas (tags usadas nos manifests EKS)
+REG=093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform
+for img in airflow-dags:v20260921163358 api-service:v20260918204856 metabase:v20260919110500; do
+  name=test-ecr-${img%%:*}
+  kubectl run "$name" --image="$REG/$img" --restart=Never --command -- sleep 30
+done
+kubectl wait --for=jsonpath='{.status.phase}'=Running pod -l run --timeout=180s \
+  || kubectl get pods -o wide
+kubectl get pods -l run
+kubectl delete pod -l run
 ```
+
+> Se as tags dos manifests mudarem, atualizar a lista acima. Listar tags disponíveis:
+> `aws ecr describe-images --region us-east-2 --repository-name data-platform/<repo> --query 'imageDetails[].imageTags' --output text`

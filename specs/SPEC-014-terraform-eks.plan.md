@@ -18,9 +18,9 @@
 
 **Nenhuma.** Todas as decisões foram fechadas no spec:
 - Região: us-east-2
-- Nodes: 2x t3.large On-Demand
+- Nodes: 3x t3.large On-Demand (atualizado de 2)
 - VPC: 2 AZs, 1 NAT Gateway
-- Cluster: público, K8s 1.30
+- Cluster: público, K8s 1.32 (atualizado de 1.30)
 
 ---
 
@@ -63,11 +63,11 @@ terraform validate
 
 **Especificação:**
 - Cluster EKS `data-platform-eks`
-- Versão Kubernetes: 1.30
+- Versão Kubernetes: 1.32 (via terraform.tfvars)
 - Endpoint público habilitado
 - Node Group `general`:
   - Instance type: t3.large
-  - Desired: 2, Min: 2, Max: 4
+  - Desired: 3 (via terraform.tfvars), Min: 2, Max: 4
   - Disk: 50GB gp3
   - Subnets: privadas
 - Add-ons gerenciados:
@@ -188,28 +188,20 @@ kubectl cluster-info
 
 ---
 
-### Tarefa 7: Validar ECR Pull
+### Tarefa 7: Validar ECR Pull (imagens customizadas)
 **Comando:**
 ```bash
-kubectl create -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-ecr-pull
-  namespace: default
-spec:
-  containers:
-  - name: test
-    image: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/api-service:latest
-    command: ["sleep", "30"]
-  restartPolicy: Never
-EOF
-
-sleep 10
-kubectl get pod test-ecr-pull
-kubectl describe pod test-ecr-pull | grep -A5 "Events:"
-kubectl delete pod test-ecr-pull
+REG=093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform
+for img in airflow-dags:v20260921163358 api-service:v20260918204856 metabase:v20260919110500; do
+  kubectl run "test-ecr-${img%%:*}" --image="$REG/$img" --restart=Never --command -- sleep 30
+done
+kubectl wait --for=jsonpath='{.status.phase}'=Running pod -l run --timeout=180s
+kubectl get pods -l run
+kubectl delete pod -l run
 ```
+Tags = as referenciadas em `apps/eks/airflow-app.yaml`, `code/api-service/k8s-eks/kustomization.yaml`
+e `charts/metabase-eks/metabase.yaml` (nunca `latest`). Repos `dbt-project` e `spark-jobs` estão
+vazios no ECR — dbt é empacotado na imagem `airflow-dags`.
 
 **Dependência:** Tarefa 6
 
@@ -277,7 +269,7 @@ kubectl delete pvc test-pvc
 ```bash
 # 1. Cluster operacional
 kubectl get nodes -o wide
-# Esperado: 2 nodes em Ready
+# Esperado: 3 nodes em Ready
 
 # 2. Add-ons funcionando
 kubectl get pods -n kube-system
