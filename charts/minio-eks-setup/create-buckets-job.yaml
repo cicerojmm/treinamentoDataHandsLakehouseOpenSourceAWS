@@ -20,7 +20,10 @@ spec:
             - -c
             - |
               set -e
-              until mc alias set minio http://minio-eks-hl.data-platform.svc.cluster.local:9000 minio minio123; do
+              # mc alias set so grava config local, nao testa conectividade —
+              # o teste real de prontidao e via "mc ready".
+              mc alias set minio http://minio-eks-hl.data-platform.svc.cluster.local:9000 minio minio123
+              until mc ready minio; do
                 echo "aguardando MinIO..."; sleep 10
               done
               for b in bronze warehouse silver gold airbyte-storage; do
