@@ -21,7 +21,13 @@ spec:
           # not known"). Reproduzido: nfs-provisioner ficou preso em
           # FailedMount ate trocar pelo IP.
           server: 172.20.211.120
-          path: /nfs-storage
+          # "/" e nao "/nfs-storage": o nfs-server exporta com fsid=0
+          # (charts/nfs-server/deployment.yaml), o que marca esse
+          # export como a raiz do pseudo-filesystem NFSv4 — o cliente
+          # precisa montar "/", nao o caminho real no servidor.
+          # Reproduzido: mount falhava com "No such file or directory"
+          # usando "/nfs-storage".
+          path: /
         storageClass:
           create: true
           name: nfs-client
