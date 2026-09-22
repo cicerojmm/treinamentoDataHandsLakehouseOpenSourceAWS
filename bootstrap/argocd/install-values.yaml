@@ -26,13 +26,15 @@ server:
       memory: 256Mi
 
 repoServer:
+  # 256Mi causava OOMKill ao gerar manifests de vários charts remotos grandes
+  # em paralelo (kube-prometheus-stack, openmetadata, airflow, airbyte, trino)
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
       cpu: 200m
-      memory: 256Mi
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
 
 applicationSet:
   resources:
