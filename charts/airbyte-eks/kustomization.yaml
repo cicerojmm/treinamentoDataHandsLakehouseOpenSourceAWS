@@ -1,5 +1,18 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-resources:
-  - storage-secret.yaml
+# Secret gerado aqui: arquivos *secret*.yaml são ignorados pelo .gitignore
+# e não chegariam ao ArgoCD. Credenciais estáticas (ambiente de testes, SPEC-015).
+secretGenerator:
+  - name: airbyte-storage-secret
+    namespace: ingestion
+    literals:
+      - s3-access-key-id=minio
+      - s3-secret-access-key=minio123
+      - s3-endpoint=http://minio-eks-hl.data-platform.svc.cluster.local:9000
+      - s3-path-style-access=true
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123
+
+generatorOptions:
+  disableNameSuffixHash: true

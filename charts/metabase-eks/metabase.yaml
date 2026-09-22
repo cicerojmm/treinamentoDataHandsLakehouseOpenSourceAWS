@@ -15,8 +15,6 @@ spec:
       labels:
         app: metabase
     spec:
-      imagePullSecrets:
-        - name: ecr-pull-secret
       containers:
         - name: metabase
           image: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/metabase:v20260919110500
@@ -67,7 +65,11 @@ metadata:
   namespace: data-platform
   labels:
     app: metabase
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
 spec:
+  type: LoadBalancer
   selector:
     app: metabase
   ports:

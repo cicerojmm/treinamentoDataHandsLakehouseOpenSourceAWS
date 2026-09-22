@@ -1,0 +1,54 @@
+# Cria o DB iceberg_catalog e as tabelas do JDBC Catalog do Trino (idempotente).
+# Equivalente GitOps de bootstrap/trino/setup-jdbc-catalog.sh.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iceberg-catalog-init
+  namespace: data-platform
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: postgres:15-alpine
+          env:
+            - name: PGHOST
+              value: hive-metastore-postgres.data-platform.svc.cluster.local
+            - name: PGUSER
+              value: hive
+            - name: PGPASSWORD
+              value: hive123
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              until pg_isready -d metastore; do echo "aguardando postgres..."; sleep 5; done
+              psql -d metastore -tc "SELECT 1 FROM pg_database WHERE datname='iceberg_catalog'" | grep -q 1 \
+                || psql -d metastore -c "CREATE DATABASE iceberg_catalog OWNER hive;"
+              psql -d iceberg_catalog -v ON_ERROR_STOP=1 <<'SQL'
+              GRANT ALL PRIVILEGES ON DATABASE iceberg_catalog TO hive;
+              GRANT ALL PRIVILEGES ON SCHEMA public TO hive;
+              ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO hive;
+              CREATE TABLE IF NOT EXISTS iceberg_tables (
+                  catalog_name VARCHAR(255) NOT NULL,
+                  table_namespace VARCHAR(255) NOT NULL,
+                  table_name VARCHAR(255) NOT NULL,
+                  metadata_location VARCHAR(1000),
+                  previous_metadata_location VARCHAR(1000),
+                  PRIMARY KEY (catalog_name, table_namespace, table_name)
+              );
+              CREATE TABLE IF NOT EXISTS iceberg_namespace_properties (
+                  catalog_name VARCHAR(255) NOT NULL,
+                  namespace VARCHAR(255) NOT NULL,
+                  property_key VARCHAR(255) NOT NULL,
+                  property_value VARCHAR(1000),
+                  PRIMARY KEY (catalog_name, namespace, property_key)
+              );
+              SQL
+              echo "JDBC Catalog OK"

@@ -21,11 +21,15 @@ spec:
             tag: v20260921163358
             pullPolicy: Always
 
-        registry:
-          secretName: ecr-pull-secret
-
         postgresql:
           enabled: false
+
+        # Conexão usada pela DAG dbt_movielens e host do Trino para o dbt (Cosmos)
+        env:
+          - name: AIRFLOW_CONN_TRINO_DEFAULT
+            value: trino://admin@trino.query-engine.svc.cluster.local:8080/
+          - name: DBT_TRINO_HOST
+            value: trino.query-engine.svc.cluster.local
 
         data:
           metadataConnection:
@@ -43,7 +47,10 @@ spec:
           enabled: true
           replicas: 1
           service:
-            type: ClusterIP
+            type: LoadBalancer
+            annotations:
+              service.beta.kubernetes.io/aws-load-balancer-type: nlb
+              service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
           startupProbe:
             failureThreshold: 20
             periodSeconds: 10

@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: kube-prometheus-stack
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   project: default
   sources:
@@ -12,6 +14,7 @@ spec:
       helm:
         valueFiles:
           - $values/charts/observability/values-local.yaml
+          - $values/charts/observability/values-eks.yaml
     - repoURL: https://github.com/cicerojmm/treinamentoDataHandsLakehouseOpenSourceAWS
       targetRevision: HEAD
       ref: values

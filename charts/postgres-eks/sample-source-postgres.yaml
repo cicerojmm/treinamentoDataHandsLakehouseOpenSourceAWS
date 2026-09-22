@@ -7,7 +7,7 @@ type: Opaque
 stringData:
   POSTGRES_USER: sample
   POSTGRES_PASSWORD: sample123
-  POSTGRES_DB: sample
+  POSTGRES_DB: movielens
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -51,6 +51,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
           resources:
             requests:
               cpu: 100m
@@ -62,6 +65,9 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: sample-source-postgres-pvc
+        - name: initdb
+          configMap:
+            name: sample-source-initdb
 ---
 apiVersion: v1
 kind: Service

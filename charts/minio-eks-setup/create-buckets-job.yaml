@@ -1,0 +1,29 @@
+# Cria os buckets do lakehouse no MinIO do EKS (idempotente).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-create-buckets
+  namespace: data-platform
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: create-buckets
+          image: quay.io/minio/mc:RELEASE.2024-11-21T17-21-54Z
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              until mc alias set minio http://minio-eks-hl.data-platform.svc.cluster.local:9000 minio minio123; do
+                echo "aguardando MinIO..."; sleep 10
+              done
+              for b in bronze warehouse silver gold airbyte-storage; do
+                mc mb "minio/$b" --ignore-existing
+              done
+              mc ls minio

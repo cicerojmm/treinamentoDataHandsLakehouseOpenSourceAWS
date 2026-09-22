@@ -7,3 +7,15 @@ resources:
   - hive-metastore-postgres.yaml
   - sample-source-postgres.yaml
   - openmetadata-postgres.yaml
+  - iceberg-catalog-init-job.yaml
+
+# Dados Movielens carregados no primeiro start do sample source (PVC vazio)
+configMapGenerator:
+  - name: sample-source-initdb
+    namespace: ingestion
+    files:
+      - sample-data/01-movielens-schema.sql
+      - sample-data/02-movielens-data.sql
+
+generatorOptions:
+  disableNameSuffixHash: true

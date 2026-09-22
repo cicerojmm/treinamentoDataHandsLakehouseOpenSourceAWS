@@ -17,31 +17,44 @@ resources) — sem mudança de código.
 - **Sem TLS** — ambiente de testes, HTTP apenas
 - **MinIO standalone** — mesmo modo do ambiente local
 - **Sem External Secrets** — manter secrets estáticos (ambiente de testes)
-- **LoadBalancer simples** — NLB para serviços que precisam de acesso externo
+- **LoadBalancer simples** — 1 NLB por serviço externo (controller in-tree, annotation `aws-load-balancer-type: nlb`)
+- **Setup de dados via Jobs no Git** (buckets, iceberg_catalog, Movielens) — sem `kubectl exec`
+- **Conexão Airbyte manual via UI** — documentada em runbook
 
-## 2. Arquivos a criar
+## 2. Arquivos (estrutura real)
 ```
-apps/eks/                           # Applications ArgoCD para EKS
+apps/eks/                               # Applications ArgoCD para EKS (sync-wave)
 ├── app-of-apps.yaml
-├── minio-operator-app.yaml
-├── minio-tenant-app.yaml
-├── trino-app.yaml
-├── airflow-app.yaml
-├── airflow-postgres-app.yaml
-├── airbyte-app.yaml
-├── airbyte-postgres-app.yaml
-├── airbyte-sample-source-app.yaml
-├── hive-metastore-app.yaml
-├── hive-metastore-postgres-app.yaml
-├── metabase-app.yaml
-├── api-service-app.yaml
-├── kube-prometheus-stack-app.yaml
-├── openmetadata-app.yaml
-├── openmetadata-postgres-app.yaml
-└── opensearch-app.yaml
+├── minio-operator-app.yaml             # wave 1
+├── minio-tenant-app.yaml               # wave 2
+├── minio-eks-setup-app.yaml            # wave 3 — Job de criação dos buckets
+├── postgres-all-app.yaml               # wave 3 — Postgres de Airflow, Airbyte, Hive, OpenMetadata, sample source
+├── hive-metastore-app.yaml             # wave 4
+├── kube-prometheus-stack-app.yaml      # wave 5
+├── airflow-app.yaml                    # wave 6
+├── servicemonitors-app.yaml            # wave 6
+├── airbyte-prereqs-app.yaml            # wave 7
+├── airbyte-app.yaml                    # wave 8
+├── opensearch-app.yaml                 # wave 8
+├── openmetadata-app.yaml               # wave 9
+├── trino-app.yaml                      # wave 9 — catálogos iceberg, hive_bronze, postgres_source
+├── metabase-app.yaml                   # wave 10
+└── api-service-app.yaml                # wave 10
 
-charts/*/values-eks.yaml             # Values específicos para EKS (onde necessário)
+charts/postgres-eks/                    # Postgres dedicados + Job iceberg_catalog + dados Movielens (initdb)
+charts/minio-eks-setup/                 # Job de buckets (bronze, warehouse, silver, gold, airbyte-storage)
+charts/metabase-eks/                    # Metabase + Postgres
+charts/airbyte-eks/                     # Secret de storage do Airbyte (MinIO)
+charts/observability/values-eks.yaml    # Grafana LoadBalancer
+charts/openmetadata/values-eks.yaml     # OpenMetadata LoadBalancer
+code/api-service/k8s-eks/               # overlay Kustomize da API (imagem ECR, secret, LoadBalancer)
+docs/runbooks/airbyte-eks-setup.md      # configuração manual da conexão Airbyte
 ```
+
+### Imagens customizadas (ECR, pull via IAM role dos nodes — sem imagePullSecret)
+- `data-platform/airflow-dags:v20260921163358`
+- `data-platform/api-service:v20260918204856`
+- `data-platform/metabase:v20260919110500`
 
 ## 3. Especificação técnica
 

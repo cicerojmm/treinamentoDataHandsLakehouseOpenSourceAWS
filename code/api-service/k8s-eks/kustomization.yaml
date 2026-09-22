@@ -4,6 +4,19 @@ kind: Kustomization
 resources:
   - ../k8s
 
+# Secret gerado aqui: arquivos *secret*.yaml são ignorados pelo .gitignore
+# e não chegariam ao ArgoCD. Credenciais estáticas (ambiente de testes, SPEC-015).
+secretGenerator:
+  - name: lakehouse-api-secret
+    namespace: data-platform
+    literals:
+      - minio-access-key=minio
+      - minio-secret-key=minio123
+      - api-key=lakehouse-demo-key-2024
+
+generatorOptions:
+  disableNameSuffixHash: true
+
 patches:
   - target:
       kind: Deployment
@@ -15,3 +28,18 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/image
         value: "093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/api-service:v20260918204856"
+      # EKS: pull do ECR via IAM role dos nodes, sem imagePullSecret
+      - op: remove
+        path: /spec/template/spec/imagePullSecrets
+  - target:
+      kind: Service
+      name: lakehouse-api
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: LoadBalancer
+      - op: add
+        path: /metadata/annotations
+        value:
+          service.beta.kubernetes.io/aws-load-balancer-type: nlb
+          service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
