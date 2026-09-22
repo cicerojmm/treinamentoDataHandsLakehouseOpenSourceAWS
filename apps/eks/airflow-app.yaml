@@ -24,6 +24,15 @@ spec:
         postgresql:
           enabled: false
 
+        # Fixos (nao usar apiSecretKey/jwtSecret: ~) — o chart avisa que
+        # deixar em branco gera um valor aleatorio a cada helm template,
+        # trocando a cada sync do ArgoCD e invalidando sessoes/tokens
+        # entre api-server e scheduler (drift real, nao so cosmetico).
+        # Estaticos no Git, mesmo padrao das demais credenciais do
+        # projeto (ambiente de testes, sem External Secrets).
+        apiSecretKey: "airflow-api-secret-2026"
+        jwtSecret: "airflow-jwt-secret-2026"
+
         # Conexão usada pela DAG dbt_movielens e host do Trino para o dbt (Cosmos)
         env:
           - name: AIRFLOW_CONN_TRINO_DEFAULT
