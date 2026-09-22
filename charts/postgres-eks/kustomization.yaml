@@ -7,6 +7,7 @@ resources:
   - hive-metastore-postgres.yaml
   - sample-source-postgres.yaml
   - openmetadata-postgres.yaml
+  - openmetadata-airflow-postgres.yaml
   - iceberg-catalog-init-job.yaml
 
 # Dados Movielens carregados no primeiro start do sample source (PVC vazio)

@@ -1,0 +1,16 @@
+# Volume de apoio do servidor NFS em-cluster. Necessario porque o
+# gp3/EBS so suporta ReadWriteOnce, e alguns componentes (ex: dags/logs
+# do Airflow gerenciado do OpenMetadata) exigem ReadWriteMany. O NFS
+# server exporta esse volume RWO como um share RWX pra quem precisar
+# (via nfs-subdir-external-provisioner, ver charts/nfs-provisioner/).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-server-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 10Gi

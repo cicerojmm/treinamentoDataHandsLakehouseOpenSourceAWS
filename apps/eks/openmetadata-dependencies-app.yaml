@@ -1,0 +1,107 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openmetadata-dependencies
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+spec:
+  project: default
+  source:
+    repoURL: https://helm.open-metadata.org
+    chart: openmetadata-dependencies
+    targetRevision: 1.5.4
+    helm:
+      # O release precisa se chamar "openmetadata-dependencies" -
+      # o Service resultante (openmetadata-dependencies-web:8080) bate
+      # com o apiEndpoint padrao que o chart "openmetadata" ja espera
+      # (pipelineServiceClientConfig), sem precisar sobrescrever nada.
+      releaseName: openmetadata-dependencies
+      values: |
+        # Reaproveita Postgres e OpenSearch dedicados ja existentes
+        # (SPEC-013) em vez de subir MySQL/OpenSearch embutidos.
+        mysql:
+          enabled: false
+        opensearch:
+          enabled: false
+
+        airflow:
+          enabled: true
+          airflow:
+            image:
+              repository: docker.getcollate.io/openmetadata/ingestion
+              tag: 1.5.4
+            executor: KubernetesExecutor
+            # Senha precisa bater com airflow-secrets (usado pelo
+            # pipelineServiceClientConfig.auth.password do chart
+            # openmetadata, ver charts/openmetadata-secrets).
+            users:
+              - username: admin
+                password: admin-om-airflow123
+                role: Admin
+                email: admin@openmetadata.local
+                firstName: OpenMetadata
+                lastName: Admin
+            resources:
+              requests:
+                cpu: 150m
+                memory: 512Mi
+              limits:
+                cpu: 500m
+                memory: 1Gi
+          scheduler:
+            resources:
+              requests:
+                cpu: 150m
+                memory: 512Mi
+              limits:
+                cpu: 500m
+                memory: 1Gi
+          web:
+            resources:
+              requests:
+                cpu: 150m
+                memory: 512Mi
+              limits:
+                cpu: 500m
+                memory: 1Gi
+          postgresql:
+            enabled: false
+          workers:
+            enabled: false
+          flower:
+            enabled: false
+          redis:
+            enabled: false
+          externalDatabase:
+            type: postgres
+            host: openmetadata-airflow-postgres.governance.svc.cluster.local
+            port: 5432
+            database: airflow_db
+            user: airflow_user
+            passwordSecret: openmetadata-airflow-postgres-secret
+            passwordSecretKey: POSTGRES_PASSWORD
+          # O chart exige ReadWriteMany pra logs (obrigatorio) e
+          # ReadOnlyMany/ReadWriteMany pra dags — gp3/EBS so suporta
+          # ReadWriteOnce. Usa a StorageClass nfs-client (ver
+          # apps/eks/nfs-server-app.yaml e nfs-provisioner-app.yaml),
+          # NFS em-cluster sobre um volume gp3 por baixo.
+          dags:
+            persistence:
+              accessMode: ReadWriteMany
+              size: 1Gi
+              storageClass: nfs-client
+          logs:
+            persistence:
+              accessMode: ReadWriteMany
+              size: 1Gi
+              storageClass: nfs-client
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: governance
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
