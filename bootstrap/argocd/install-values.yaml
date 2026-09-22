@@ -8,13 +8,15 @@ configs:
     server.insecure: true
 
 controller:
+  # 512Mi causava OOMKill ao gerenciar apps com muitos recursos/CRDs grandes
+  # (kube-prometheus-stack, openmetadata) simultaneamente no sync inicial
   resources:
     requests:
       cpu: 250m
-      memory: 256Mi
-    limits:
-      cpu: 500m
       memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1536Mi
 
 server:
   resources:
