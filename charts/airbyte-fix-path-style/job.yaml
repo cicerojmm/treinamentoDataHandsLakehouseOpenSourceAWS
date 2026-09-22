@@ -31,7 +31,7 @@ spec:
             - |
               set -e
               kubectl patch configmap airbyte-airbyte-env \
-                --type merge -p '{"data":{"S3_PATH_STYLE_ACCESS":"true"}}'
+                --type merge -p '{"data":{"S3_PATH_STYLE_ACCESS":"true","STORAGE_TYPE":"s3","AWS_DEFAULT_REGION":"us-east-1"}}'
               kubectl rollout restart deployment/airbyte-server
               kubectl rollout restart deployment/airbyte-worker
               echo "S3_PATH_STYLE_ACCESS corrigido e deployments reiniciados."
