@@ -20,8 +20,21 @@ Componentes de suporte: Grafana, OpenMetadata, Great Expectations
 
 ## Quick Start (Local)
 
+Funciona igual em qualquer máquina (notebook, EC2, etc.) — clone o repo
+na máquina, e rode:
+
 ```bash
-# Subir o cluster e ArgoCD
+# git pull + sobe o cluster kind + ArgoCD + espera tudo ficar Synced/Healthy
+make run-local
+```
+
+Numa máquina Ubuntu nova (ex: EC2 recém-criada), instale as dependências
+antes com `bash scripts/ec2-bootstrap.sh`.
+
+Comandos individuais (o que `make run-local` já orquestra):
+
+```bash
+# Subir o cluster e ArgoCD (sem git pull nem espera de health)
 make bootstrap-local
 
 # Acessar UI do ArgoCD

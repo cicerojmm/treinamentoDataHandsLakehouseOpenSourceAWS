@@ -1,4 +1,4 @@
-.PHONY: bootstrap-local destroy-local argocd-password argocd-ui \
+.PHONY: bootstrap-local destroy-local argocd-password argocd-ui run-local \
 	check-prereqs-eks plan-eks images-eks bootstrap-eks destroy-eks \
 	wait-eks urls-eks argocd-password-eks argocd-ui-eks
 
@@ -60,6 +60,11 @@ argocd-ui:
 	@echo ""
 	@echo "Pressione Ctrl+C para parar"
 	kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+# Roda igual em qualquer maquina (notebook, EC2, qualquer lugar): git pull
+# + bootstrap-local + espera tudo ficar Synced/Healthy. Ver scripts/run-local.sh.
+run-local:
+	@bash scripts/run-local.sh
 
 # ---------------------------------------------------------------------------
 # EKS
