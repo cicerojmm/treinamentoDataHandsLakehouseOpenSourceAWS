@@ -111,23 +111,20 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: ingestion
-  ignoreDifferences:
-    - group: apps
-      kind: StatefulSet
-      name: airbyte-minio
-      jsonPointers:
-        - /spec
-    - group: ""
-      kind: ConfigMap
-      name: airbyte-airbyte-env
-      jsonPointers:
-        - /data/MINIO_ENDPOINT
+  # (removido) ignoreDifferences para StatefulSet airbyte-minio +
+  # ConfigMap airbyte-airbyte-env/MINIO_ENDPOINT, combinado com
+  # RespectIgnoreDifferences=true, era residuo de quando o projeto
+  # usava storage.type=minio. Esse combo faz o ArgoCD NUNCA podar
+  # recursos que batem numa regra de ignoreDifferences, mesmo quando
+  # deixam de fazer parte do estado desejado — e' a causa raiz de
+  # airbyte-minio reaparecer repetidamente e do ConfigMap voltando pra
+  # valores antigos apos qualquer sync, mesmo com o spec correto
+  # (type: s3) confirmado no objeto Application ao vivo.
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - RespectIgnoreDifferences=true
       - SkipDryRunOnMissingResource=true
       - PruneLast=true
