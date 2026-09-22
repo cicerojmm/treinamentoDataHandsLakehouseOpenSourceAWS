@@ -7,6 +7,15 @@ EKS for recriado — o estado do Airbyte fica no Postgres dedicado.
 - Apps `airbyte`, `postgres-all` e `minio-eks-setup` Synced/Healthy
 - Bucket `bronze` criado (Job `minio-create-buckets`)
 - Sample source com dados Movielens (carregados via initdb no primeiro start)
+- **Path-style do MinIO corrigido** (passo manual, ver comentário em
+  `apps/eks/airbyte-app.yaml`) — sem isso, testar/rodar qualquer
+  source dá erro 500:
+  ```bash
+  kubectl patch configmap airbyte-airbyte-env -n ingestion \
+    --type merge -p '{"data":{"S3_PATH_STYLE_ACCESS":"true"}}'
+  kubectl rollout restart deployment/airbyte-server \
+    deployment/airbyte-worker -n ingestion
+  ```
 
 ```bash
 kubectl exec -n ingestion deploy/sample-source-postgres -- \

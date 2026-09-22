@@ -43,9 +43,26 @@ spec:
           # pre-install (templates/minio.yaml: {{- if eq storage.type
           # "minio" }}, sem toggle pra desativar) — deploy indesejado
           # (decisao do projeto e' MinIO externo, ver SPEC-006) que
-          # travou o sync em ErrImagePull. Mantemos type: s3 e
-          # corrigimos o S3_PATH_STYLE_ACCESS (ver airbyte-fix-path-style
-          # Job abaixo) em vez de usar o modo minio do chart.
+          # travou o sync em ErrImagePull.
+          #
+          # PASSO MANUAL NECESSARIO apos qualquer sync inicial deste
+          # app (cluster novo, ou selfHeal apos editar este arquivo):
+          # com type: s3 o chart SEMPRE renderiza S3_PATH_STYLE_ACCESS
+          # vazio (_helpers.tpl:s3PathStyleAccess so seta "true" quando
+          # type=="minio" — nao da pra sobrescrever via values). Sem
+          # path-style, o client Java do Airbyte nao fala com o MinIO
+          # (sem DNS wildcard pra virtual-hosted-style), causando 500
+          # ao testar/rodar qualquer source. Corrigir com:
+          #   kubectl patch configmap airbyte-airbyte-env -n ingestion \
+          #     --type merge -p '{"data":{"S3_PATH_STYLE_ACCESS":"true"}}'
+          #   kubectl rollout restart deployment/airbyte-server \
+          #     deployment/airbyte-worker -n ingestion
+          # Ja tentamos automatizar isso via Job (PostSync hook) mas o
+          # ArgoCD deste cluster mostrou renders inconsistentes/
+          # desatualizados especificamente pra esse Job (imagem antiga
+          # presa mesmo apos varios refresh/delete+recreate) — nao
+          # resolvido, abandonado por ora. Ver git log deste arquivo
+          # para o historico da investigacao.
           storage:
             type: s3
             storageSecretName: airbyte-storage-secret
