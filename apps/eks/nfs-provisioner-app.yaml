@@ -14,7 +14,13 @@ spec:
     helm:
       values: |
         nfs:
-          server: nfs-server.data-platform.svc.cluster.local
+          # IP fixo do Service (ver charts/nfs-server/service.yaml), nao
+          # o nome DNS: o mount NFS e' feito pelo kubelet no HOST (fora
+          # dos pods), que usa o resolver da VPC, nao o CoreDNS — nomes
+          # tipo *.svc.cluster.local nao resolvem ali ("Name or service
+          # not known"). Reproduzido: nfs-provisioner ficou preso em
+          # FailedMount ate trocar pelo IP.
+          server: 172.20.211.120
           path: /nfs-storage
         storageClass:
           create: true

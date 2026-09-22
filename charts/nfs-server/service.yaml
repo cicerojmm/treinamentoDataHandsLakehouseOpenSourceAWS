@@ -3,6 +3,11 @@ kind: Service
 metadata:
   name: nfs-server
 spec:
+  # Fixo: o nfs-provisioner-app precisa apontar pra esse IP (o mount
+  # NFS roda no kubelet/host, que nao resolve DNS interno do cluster —
+  # ver comentario em apps/eks/nfs-provisioner-app.yaml). Fixar aqui
+  # garante que o IP nao muda se o Service for recriado.
+  clusterIP: 172.20.211.120
   selector:
     app: nfs-server
   ports:
