@@ -19,18 +19,18 @@ openmetadata:
       host: opensearch-cluster-master.governance.svc.cluster.local
       port: 9200
       scheme: http
+    # Nao usamos o subchart openmetadata-dependencies (Airflow proprio do
+    # OpenMetadata) — ingestion pipelines geridas manualmente via UI/API.
+    # O client ainda exige um secret configurado para o server subir; o
+    # endpoint nunca e de fato chamado enquanto nenhuma pipeline usa-lo.
+    pipelineServiceClientConfig:
+      auth:
+        password:
+          secretRef: airflow-secrets
+          secretKey: openmetadata-airflow-password
 
 ingress:
   enabled: false
-
-airflow:
-  enabled: true
-  airflow:
-    auth:
-      username: admin
-      password:
-        secretRef: openmetadata-airflow-secret
-        secretKey: password
 
 postgresql:
   enabled: false

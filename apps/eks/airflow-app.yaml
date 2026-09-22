@@ -72,12 +72,22 @@ spec:
 
         scheduler:
           replicas: 1
+          # Default startupProbe (6x10s=60s) e o heartbeat do scheduler
+          # (~50-55s sob contencao de CPU no sync inicial) ficam no limite
+          # um do outro, causando restart loop (CrashLoopBackOff transitorio)
+          startupProbe:
+            failureThreshold: 20
+            periodSeconds: 10
+          livenessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 5
           resources:
             requests:
-              cpu: 100m
+              cpu: 200m
               memory: 256Mi
             limits:
-              cpu: 500m
+              cpu: 1000m
               memory: 512Mi
 
         triggerer:

@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: governance
+
+# Secret exigido pelo chart openmetadata (pipelineServiceClientConfig.auth)
+# mesmo sem o subchart openmetadata-dependencies (Airflow proprio) deployado.
+# Sem ele o init container run-db-migrations falha com
+# CreateContainerConfigError. Valor estatico: o endpoint correspondente
+# nunca e chamado enquanto nenhuma ingestion pipeline for criada via UI.
+secretGenerator:
+  - name: airflow-secrets
+    literals:
+      - openmetadata-airflow-password=admin-om-airflow123
+
+generatorOptions:
+  disableNameSuffixHash: true
