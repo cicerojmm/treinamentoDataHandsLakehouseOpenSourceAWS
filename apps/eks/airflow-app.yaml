@@ -82,13 +82,15 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 60
             failureThreshold: 5
+          # 512Mi causou 1x OOMKilled no startup (parse do dbt project via
+          # Cosmos e pico de carga com outros componentes subindo juntos)
           resources:
             requests:
               cpu: 200m
-              memory: 256Mi
+              memory: 384Mi
             limits:
               cpu: 1000m
-              memory: 512Mi
+              memory: 1Gi
 
         triggerer:
           enabled: true
