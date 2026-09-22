@@ -109,7 +109,7 @@ concluído no status abaixo.
 - [x] SPEC-012: Observabilidade — Implementado (kube-prometheus-stack + Grafana)
 - [x] SPEC-013: OpenMetadata — Implementado (catálogo + linhagem)
 - [x] SPEC-014: Terraform EKS — Implementado (cluster `data-platform-eks`, K8s 1.32, 3x t3.large, us-east-2; validado 2026-09-22, 7/7 critérios)
-- [ ] SPEC-015: Overlays EKS — Plan aprovado (D1/D2/D3 = A), aguardando Implement
+- [ ] SPEC-015: Overlays EKS — Implementado 2026-09-22 (17/17 Applications ArgoCD Synced/Healthy no EKS), aguardando Validate
 - [ ] SPEC-016: CI/CD — Specify pendente
 
 (Atualizar esta seção ao final de cada fase de Validate bem-sucedida.)
