@@ -128,6 +128,19 @@ spec:
             worker_container_tag: v20260921163358
             delete_worker_pods: "True"
             delete_worker_pods_on_failure: "False"
+          kubernetes_executor:
+            # Default 60s: reduz o tempo ate reprocessar tasks presas em
+            # "queued" sem pod associado (race entre o watcher de pods do
+            # scheduler e delete_worker_pods=True em tasks rapidas).
+            worker_pods_queued_check_interval: "20"
+          scheduler:
+            # Defaults 600s/120s: reduz o tempo ate detectar e resetar
+            # tasks travadas em queued/running sem progresso real
+            # (observado com o KubernetesExecutor em tasks curtas e
+            # paralelas do dbt/Cosmos — sem isso, o self-heal natural
+            # podia levar ate 10 min por task presa).
+            task_queued_timeout: "300"
+            task_queued_timeout_check_interval: "30"
   destination:
     server: https://kubernetes.default.svc
     namespace: ingestion
