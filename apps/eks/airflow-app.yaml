@@ -110,11 +110,18 @@ spec:
         workers:
           replicas: 0
 
+        # useHelmHooks: true (default do chart) faz o Job virar hook do
+        # Helm (helm.sh/hook: post-install,post-upgrade), que o ArgoCD
+        # traduz para seu proprio PostSync + hook-delete-policy. Sem
+        # isso, com ttlSecondsAfterFinished: 300 (default do chart), o
+        # Job se autodestroi e o ArgoCD fica marcando a Application como
+        # OutOfSync para sempre por esperar um recurso que nao existe
+        # mais (reproduzido: bloqueava make wait-eks indefinidamente).
         createUserJob:
-          useHelmHooks: false
+          useHelmHooks: true
 
         migrateDatabaseJob:
-          useHelmHooks: false
+          useHelmHooks: true
 
         airflowLocalSettings: ""
 
