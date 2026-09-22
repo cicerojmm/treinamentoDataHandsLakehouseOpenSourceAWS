@@ -38,16 +38,24 @@ spec:
             database: airbyte
             user: airbyte
             password: airbyte123
+          # type: minio (nao "s3"): o template do chart so' seta
+          # S3_PATH_STYLE_ACCESS=true quando storage.type=="minio" (ver
+          # _helpers.tpl:s3PathStyleAccess). Com type: s3 o client Java
+          # tenta virtual-hosted-style contra o MinIO, que nao suporta
+          # (sem DNS wildcard), e falha com "S3Exception: ... region
+          # 'us-east-1' is wrong; expecting 'eu-west-1'" — reproduzido
+          # ao testar a conexao do source Postgres no Airbyte (erro 500
+          # ao buscar os logs do check job). Sem storageSecretName: o
+          # chart cria seu proprio secret com minio/minio123 (bate com
+          # as credenciais reais do tenant).
           storage:
-            type: s3
-            storageSecretName: airbyte-storage-secret
+            type: minio
             bucket:
               log: airbyte-storage
               state: airbyte-storage
               workloadOutput: airbyte-storage
-            s3:
-              region: "us-east-1"
-              authenticationType: credentials
+            minio:
+              endpoint: http://minio-eks-hl.data-platform.svc.cluster.local:9000
 
         webapp:
           enabled: true
