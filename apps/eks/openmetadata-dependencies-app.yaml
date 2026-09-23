@@ -42,29 +42,61 @@ spec:
                 email: admin@openmetadata.local
                 firstName: OpenMetadata
                 lastName: Admin
-            resources:
-              requests:
-                cpu: 150m
-                memory: 512Mi
-              limits:
-                cpu: 500m
-                memory: 1Gi
+            # Recursos medidos em carga (2026-09-23): memoria = pico
+            # medido, cpu = ~metade do p95 (comprimivel).
+            # Pods de ingestao (KubernetesExecutor): pico 272Mi.
+            kubernetesPodTemplate:
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 320Mi
+                limits:
+                  memory: 1Gi
+            dbMigrations:
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 192Mi
+                limits:
+                  memory: 384Mi
+            sync:
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 448Mi
+                limits:
+                  memory: 768Mi
           scheduler:
             resources:
               requests:
-                cpu: 150m
-                memory: 512Mi
+                cpu: 200m
+                memory: 768Mi
               limits:
-                cpu: 500m
-                memory: 1Gi
+                cpu: 1000m
+                memory: 1280Mi
+          # web ja sofreu OOMKilled com limit 1Gi (uso medido: 893Mi)
           web:
             resources:
               requests:
-                cpu: 150m
-                memory: 512Mi
+                cpu: 20m
+                memory: 1Gi
               limits:
                 cpu: 500m
+                memory: 1536Mi
+          triggerer:
+            resources:
+              requests:
+                cpu: 150m
+                memory: 704Mi
+              limits:
                 memory: 1Gi
+          pgbouncer:
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
           postgresql:
             enabled: false
           workers:
