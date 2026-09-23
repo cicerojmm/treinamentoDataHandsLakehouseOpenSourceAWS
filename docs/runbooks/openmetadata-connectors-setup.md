@@ -37,6 +37,33 @@ Settings → Pipeline Services na UI não deve mostrar erro de conexão
    - **Database Schema**: `default`
 4. Test Connection → Save
 
+## Connector: MinIO (Storage / S3)
+
+Cataloga os arquivos brutos do lakehouse (Parquet do Airbyte em
+`bronze/movielens/*`). As tabelas Iceberg do `warehouse` vêm pelo
+connector Trino acima.
+
+1. Settings → Services → Storages → Add New Service
+2. Selecionar **S3**, nome `MinIO Lakehouse`
+3. Configurar:
+   - **AWS Access Key / Secret**: `minio` / `minio123`
+   - **AWS Region**: `us-east-2` (qualquer valor serve pro MinIO)
+   - **Endpoint URL**: `http://minio-eks-hl.data-platform.svc.cluster.local:9000`
+4. Test Connection → Save. O aviso de `GetMetrics` é esperado, porque o
+   MinIO não tem CloudWatch.
+5. Na ingestion de metadata, **Container Filter Pattern**: deixar
+   vazio ou usar `.*`. **Não usar `*`**: o campo é regex, e `*` é
+   inválido. A listagem falha ("Invalid regex [*]") e o
+   `markDeletedContainers` marca todos os buckets como deletados, mas
+   a execução mesmo assim aparece como `success`.
+
+Os schemas dos Parquet dependem do manifest `bronze/openmetadata.json`,
+gravado pelo Job `minio-create-buckets` (`charts/minio-eks-setup/`).
+Novo dataset em `bronze` = nova entrada no manifest desse Job.
+
+Esperado após rodar: containers `bronze.movielens/{movies,ratings,links,tags}`
+com colunas.
+
 ## Connector: Airflow
 
 Este connector faz *harvesting* (leitura) de metadata do Airflow
