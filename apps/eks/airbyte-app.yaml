@@ -14,10 +14,6 @@ spec:
     helm:
       skipCrds: true
       parameters:
-        - name: global.jobs.resources.requests.cpu
-          value: "0"
-        - name: global.jobs.resources.requests.memory
-          value: "0"
         - name: server.livenessProbe.initialDelaySeconds
           value: "120"
         - name: server.livenessProbe.periodSeconds
@@ -44,6 +40,18 @@ spec:
           # conta em eu-west-1 (erro 500: "region 'us-east-1' is wrong;
           # expecting 'eu-west-1'"). Com type: minio o chart seta
           # MINIO_ENDPOINT e S3_PATH_STYLE_ACCESS=true sozinho.
+          # JOB_MAIN_CONTAINER_*_REQUEST sobrescreve todas as variantes de
+          # recurso do airbyte-server (sem isso, sync de source de banco
+          # pede orchestrator 2 CPU/2Gi + source 1 + destination 1 = 4 CPU,
+          # e o pod de replicacao nunca agenda em t3.large). Precisa ser
+          # string aqui: via helm "parameters" o "0" vira int 0 e o chart
+          # renderiza vazio.
+          jobs:
+            resources:
+              requests:
+                cpu: "0"
+                memory: "256Mi"
+
           storage:
             type: minio
             storageSecretName: airbyte-storage-secret
