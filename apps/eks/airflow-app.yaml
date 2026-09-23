@@ -73,7 +73,7 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              cpu: 200m
+              cpu: 20m
               memory: 512Mi
             limits:
               cpu: 1000m
@@ -92,14 +92,40 @@ spec:
             periodSeconds: 60
             failureThreshold: 5
           # 512Mi causou 1x OOMKilled no startup (parse do dbt project via
-          # Cosmos e pico de carga com outros componentes subindo juntos)
+          # Cosmos e pico de carga com outros componentes subindo juntos).
+          # Recursos medidos em carga (2026-09-23): memoria = pico medido,
+          # cpu = ~metade do p95 (comprimivel). Scheduler: pico 617Mi.
           resources:
             requests:
-              cpu: 200m
-              memory: 384Mi
+              cpu: 175m
+              memory: 640Mi
             limits:
               cpu: 1000m
               memory: 1Gi
+          logGroomerSidecar:
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
+
+        # Pico 653Mi e ~470m cpu (reparse do projeto dbt via Cosmos; o
+        # intervalo de reparse sobe para 300s em config.dag_processor).
+        dagProcessor:
+          resources:
+            requests:
+              cpu: 150m
+              memory: 704Mi
+            limits:
+              memory: 1Gi
+          logGroomerSidecar:
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
 
         triggerer:
           enabled: true
@@ -108,16 +134,41 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 15
             failureThreshold: 5
+          # Pico 470Mi com limit de 512Mi (risco de OOM) e ~380m cpu.
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
+              cpu: 200m
               memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          logGroomerSidecar:
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
 
+        statsd:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+
+        # workers.kubernetes.resources = template dos pods de task do
+        # KubernetesExecutor (tasks da dbt_movielens: pico 329Mi, ~500m cpu).
         workers:
           replicas: 0
+          kubernetes:
+            resources:
+              requests:
+                cpu: 250m
+                memory: 384Mi
+              limits:
+                memory: 768Mi
 
         # useHelmHooks: true (default do chart) faz o Job virar hook do
         # Helm (helm.sh/hook: post-install,post-upgrade), que o ArgoCD
@@ -161,6 +212,11 @@ spec:
             # "queued" sem pod associado (race entre o watcher de pods do
             # scheduler e delete_worker_pods=True em tasks rapidas).
             worker_pods_queued_check_interval: "20"
+          dag_processor:
+            # Default 30s: reparsear a DAG (Cosmos monta o projeto dbt
+            # inteiro) consumia ~0,5 core continuamente. DAG so' muda com
+            # imagem nova, e o dag-processor reinicia e parseia na hora.
+            min_file_process_interval: "300"
           scheduler:
             # Defaults 600s/120s: reduz o tempo ate detectar e resetar
             # tasks travadas em queued/running sem progresso real
