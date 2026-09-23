@@ -3,7 +3,7 @@
 **Fase do projeto:** 5 — Automação de entrega
 **Pré-requisitos:** SPEC-016 (CI/CD de imagens), SPEC-014 (Terraform EKS)
 **Bloqueia:** nenhum
-**Status:** Specify (decisões fechadas 2026-09-23, aguardando aprovação)
+**Status:** Plan aprovado (2026-09-23), aguardando Implement
 
 ---
 
