@@ -63,4 +63,6 @@ def query_iceberg(table_name: str, query_suffix: str = "", schema: str = None) -
     sql = f"SELECT * FROM iceberg_scan('{path}') {query_suffix}"
     result = conn.execute(sql).fetchdf()
     conn.close()
+    # NULL numerico vira NaN no pandas, que o JSON padrao rejeita (500).
+    result = result.astype(object).where(result.notna(), None)
     return result.to_dict(orient="records")
