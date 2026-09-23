@@ -1,5 +1,51 @@
 # Overrides do kube-prometheus-stack para EKS (aplicado sobre values-local.yaml)
+
+# Recursos medidos em carga (2026-09-23): memoria = pico medido, cpu =
+# ~metade do p95. Prometheus: pico 432Mi com limit 512Mi (cresce com a
+# retencao de 15d).
+prometheus:
+  prometheusSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+prometheusOperator:
+  prometheusConfigReloader:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
+
 grafana:
+  # sidecars de dashboards/datasources: ~80Mi cada
+  sidecar:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 96Mi
+      limits:
+        memory: 192Mi
   service:
     type: LoadBalancer
     port: 3001
