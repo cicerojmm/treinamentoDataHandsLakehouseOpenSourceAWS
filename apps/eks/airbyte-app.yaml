@@ -81,13 +81,15 @@ spec:
               cpu: 500m
               memory: 512Mi
 
+        # Recursos medidos em carga (2026-09-23): memoria = pico medido,
+        # cpu = ~metade do p95 (comprimivel).
         server:
           enabled: true
           replicaCount: 1
           resources:
             requests:
-              cpu: 200m
-              memory: 512Mi
+              cpu: 20m
+              memory: 640Mi
             limits:
               cpu: 1000m
               memory: 1Gi
@@ -97,8 +99,8 @@ spec:
           replicaCount: 1
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 20m
+              memory: 448Mi
             limits:
               cpu: 1000m
               memory: 1Gi
@@ -106,6 +108,44 @@ spec:
         temporal:
           enabled: true
           replicaCount: 1
+          resources:
+            requests:
+              cpu: 20m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+
+        workload-launcher:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 512Mi
+            limits:
+              memory: 768Mi
+
+        workload-api-server:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 384Mi
+            limits:
+              memory: 640Mi
+
+        cron:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 416Mi
+            limits:
+              memory: 768Mi
+
+        connector-builder-server:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 320Mi
+            limits:
+              memory: 512Mi
 
         postgresql:
           enabled: false
@@ -120,6 +160,15 @@ spec:
           image:
             repository: quay.io/minio/minio
             tag: RELEASE.2023-11-20T22-40-07Z
+          # Ocioso (~100Mi); o default reservava 1Gi/250m. O template exige
+          # os 4 valores.
+          resources:
+            requests:
+              cpu: 10m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
 
         airbyteBootloader:
           enabled: false
