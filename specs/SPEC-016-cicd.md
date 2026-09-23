@@ -3,7 +3,7 @@
 **Fase do projeto:** 5 — Automação de entrega
 **Pré-requisitos:** SPEC-002 (ECR), SPEC-015 (overlays EKS)
 **Bloqueia:** nenhum
-**Status:** Specify (revisado 2026-09-23, aguardando aprovação)
+**Status:** Specify aprovado, Plan em elaboração (2026-09-23)
 
 ---
 
@@ -25,8 +25,12 @@ sincroniza sozinho.
   `main` (sem Image Updater). Permitido enquanto o `main` não for
   protegido. Quando for, o bot passa a abrir PR, e isso fica fora deste spec.
 - **Acesso à AWS:** GitHub Secrets `AWS_ACCESS_KEY_ID` e
-  `AWS_SECRET_ACCESS_KEY` de um usuário IAM dedicado, com permissão só
-  de push nos repositórios ECR abaixo.
+  `AWS_SECRET_ACCESS_KEY` com as credenciais já usadas localmente (conta
+  root, `093499160510`). Decisão explícita do usuário: sem usuário IAM
+  dedicado neste momento. **Risco aceito:** são credenciais de root, sem
+  nenhum limite de escopo — se vazarem, comprometem a conta inteira, não
+  só ECR. Revisar para um usuário IAM com permissão mínima é melhoria
+  futura (ver seção 7).
 - **Imagens no escopo:** `airflow-dags`, `api-service`, `metabase`. As
   imagens `dbt-project` e `spark-jobs` saem do escopo (a `dbt-project` não
   é usada por nenhum componente; `spark-jobs` está vazio).
@@ -43,19 +47,31 @@ sincroniza sozinho.
   contexto raiz, sem o passo de cópia do `build.sh`.
 - **State do Terraform em backend S3 remoto:** hoje os states de
   `envs/shared` e `envs/eks` existem só na máquina local, sem trava e sem
-  backup. Eles passam para um bucket S3 dedicado (versionado,
-  criptografado, com acesso público bloqueado), usando a trava nativa do
-  S3 (`use_lockfile = true`, sem DynamoDB). Isso **não** conflita com a
-  decisão "MinIO em todos os ambientes", que trata do storage do
-  lakehouse e não do state de infra.
-- **Usuário IAM do CI no Terraform, access key fora dele:** o Terraform
-  cria o usuário e a política. A access key é gerada manualmente
-  (`aws iam create-access-key`) e vai direto para os GitHub Secrets.
-  Nunca usar `aws_iam_access_key`, que grava a secret em texto puro no state.
+  backup. Passam para um bucket S3 já existente do usuário
+  (`cjmm-datahandson-configs`, compartilhado com outros projetos, sem
+  versionamento — decisão explícita de não mexer nisso agora), sob o
+  prefixo `terraform/lakehouse_opensource_eks/{shared,eks}/`, usando a
+  trava nativa do S3 (`use_lockfile = true`, sem DynamoDB). Isso **não**
+  conflita com a decisão "MinIO em todos os ambientes", que trata do
+  storage do lakehouse e não do state de infra.
+  - `envs/shared` (ECR, com imagens reais já publicadas): migração normal
+    (`terraform init -migrate-state`), sem perder nada.
+  - `envs/eks`: **sem migração**. O usuário vai destruir o ambiente atual
+    (`make destroy-eks`) e recriar do zero, já com o backend S3 desde o
+    primeiro `terraform init`. O deploy das imagens/manifestos (não do
+    cluster em si) passa a ser feito pelo CI/CD deste spec, como teste de
+    ponta a ponta do próprio pipeline.
+- **Sem usuário IAM dedicado por enquanto:** ver "Acesso à AWS" acima.
+  Nenhum recurso IAM novo é criado neste spec.
 - **Repositório ECR `metabase` sob o Terraform:** hoje ele existe fora do
   Terraform e sem política de ciclo de vida. Entra na lista
   `ecr_repositories` via `terraform import`, e com isso ganha a política
   padrão do módulo (mantém as últimas 20 imagens, o que basta para rollback).
+  Independente da decisão de IAM acima.
+- **Makefile continua funcional para uso manual, sem depender do CI/CD:**
+  `make images-eks`, `make bootstrap-eks`, `make plan-eks` etc. seguem
+  funcionando exatamente como hoje. O CI/CD é um caminho adicional
+  (automático a cada merge), não uma substituição do fluxo manual.
 
 ## 2. Arquivos
 ```
@@ -69,11 +85,10 @@ code/airflow-dags/build.sh        # passa a só chamar docker build com contexto
 code/api-service/tests/           # pytest mínimo
 code/api-service/requirements-dev.txt
 infra/terraform/envs/shared/backend.tf     # backend S3
-infra/terraform/envs/shared/iam-github.tf  # usuário IAM + política de push no ECR
 infra/terraform/envs/shared/main.tf        # + "metabase" em ecr_repositories; required_version >= 1.10
 infra/terraform/envs/eks/backend.tf        # backend S3
 infra/terraform/envs/eks/providers.tf      # required_version >= 1.10
-docs/runbooks/cicd-setup.md       # bucket de state, migração, access key, GitHub Secrets
+docs/runbooks/cicd-setup.md       # migração do state, GitHub Secrets (credenciais root)
 ```
 
 Manifestos atualizados pelo bot (um por imagem):
@@ -130,32 +145,31 @@ excluem os manifestos, por clareza.
   - endpoint `/health` responde 200.
 - **Metabase:** só o build (imagem base + driver, sem código próprio).
 
-### 3.4 Usuário IAM e secrets
-Usuário IAM dedicado (`github-actions-ecr`), criado pelo Terraform em
-`envs/shared`, com política mínima: `ecr:GetAuthorizationToken` e as
-ações de push (`BatchCheckLayerAvailability`, `InitiateLayerUpload`,
-`UploadLayerPart`, `CompleteLayerUpload`, `PutImage`, `BatchGetImage`,
-`DescribeImages`) restritas aos 3 repositórios
-`data-platform/{airflow-dags,api-service,metabase}`. A access key é criada
-fora do Terraform e vai direto para os GitHub Secrets. Passo a passo em
+### 3.4 Credenciais do CI
+GitHub Secrets `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` com as
+credenciais root já usadas localmente (`aws configure get
+aws_secret_access_key` etc., pelo próprio usuário — nunca lido ou
+impresso por automação). Sem criação de recurso IAM. Passo a passo em
 `docs/runbooks/cicd-setup.md`.
 
 ### 3.5 State do Terraform (backend S3)
-1. O bucket de state é criado **uma vez**, via CLI, documentado no
-   runbook: o Terraform não guarda o próprio state no bucket que ele
-   mesmo cria. Regras do bucket: versionamento ligado, SSE-S3, bloqueio de
-   acesso público, região `us-east-2`.
-2. `backend "s3"` em `envs/shared` e `envs/eks` (keys separadas por
-   ambiente), com `use_lockfile = true` e `encrypt = true`.
-3. Migração: `terraform init -migrate-state` em cada ambiente. Depois
-   de validar, apagar os `terraform.tfstate*` locais.
-4. `required_version = ">= 1.10"` (exigido pela trava nativa do S3; a
-   versão local é 1.14.1).
-5. Ordem: migrar os states **antes** de criar o usuário IAM e importar o
-   ECR `metabase`.
+1. Bucket já existente do usuário: `cjmm-datahandson-configs` (região
+   `us-east-1`), já compartilhado com outros projetos — não é criado
+   neste spec. Sem alteração no versionamento (decisão explícita).
+2. `backend "s3"` em `envs/shared` e `envs/eks`, keys
+   `terraform/lakehouse_opensource_eks/{shared,eks}/terraform.tfstate`,
+   `region = "us-east-1"` (região do bucket, não a dos recursos
+   gerenciados), `use_lockfile = true`, `encrypt = true`.
+3. `envs/shared`: `terraform init -migrate-state`, confirmar `terraform
+   plan` sem mudanças, só então apagar o `terraform.tfstate*` local.
+4. `envs/eks`: **sem migração** — o usuário destrói o ambiente atual
+   antes (`make destroy-eks`), o `terraform.tfstate` local fica vazio,
+   e o `backend.tf` novo entra num `terraform init` limpo, direto no S3.
+5. `required_version = ">= 1.10"` nos dois ambientes (exigido pela trava
+   nativa do S3; a versão local é 1.14.1).
 
-Por mexer em backend e IAM, a implementação desta seção segue Plan Mode
-(regra do `CLAUDE.md` para infra sensível).
+Por mexer em backend do Terraform, a implementação desta seção segue
+Plan Mode (regra do `CLAUDE.md` para infra sensível).
 
 ## 4. Critério de Aceite
 1. Push em `code/dbt-project/**` dispara **só** `airflow-dags.yml`.
@@ -177,10 +191,11 @@ Por mexer em backend e IAM, a implementação desta seção segue Plan Mode
 7. Os states do Terraform estão no S3 e não há state local:
    `terraform state list` funciona num checkout limpo (em `envs/shared` e
    `envs/eks`), e `find infra/terraform -name '*.tfstate'` volta vazio.
-8. Nenhuma credencial no state: `terraform state list | grep aws_iam_access_key` vazio.
-9. `terraform plan` em `envs/shared` sem mudanças pendentes, com o
+8. `terraform plan` em `envs/shared` sem mudanças pendentes, com o
    `metabase` gerenciado e com lifecycle policy:
    `aws ecr get-lifecycle-policy --repository-name data-platform/metabase` responde.
+9. `make images-eks` e `make bootstrap-eks` continuam funcionando sem
+   depender de nenhum arquivo/segredo novo do CI (uso manual preservado).
 
 ## 5. Fora de escopo
 - Ambiente local (`kind`): manifestos e deploy continuam manuais.
@@ -196,8 +211,12 @@ Por mexer em backend e IAM, a implementação desta seção segue Plan Mode
 - Desligar o CI: desabilitar os workflows na aba Actions. O deploy
   manual (`make images-eks` + edição da tag) continua funcionando.
 
-## 7. Decisões para o Plan
-- Como o `dbt parse` obtém o profile no CI (target dedicado no
-  `profiles.yml` ou variáveis de ambiente) sem conexão real.
-- Nome do bucket de state. Sugestão: `data-platform-tfstate-093499160510`,
-  com o ID da conta para garantir unicidade global.
+## 7. Decisões resolvidas no Plan (2026-09-23)
+- `dbt parse` usa o profile atual sem target dedicado — validado
+  localmente, roda com exit 0 sem nenhuma env var (todo `env_var()` do
+  `profiles.yml` já tem default).
+- Bucket de state: `cjmm-datahandson-configs` (existente), não um bucket
+  novo.
+- Usuário IAM dedicado para o CI, com permissão mínima: fora de escopo
+  por decisão do usuário. Melhoria futura, quando root deixar de ser
+  usado nos Secrets.
