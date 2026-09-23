@@ -4,8 +4,6 @@ from botocore.config import Config
 
 from app.config import MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET, ICEBERG_SCHEMA
 
-_table_path_cache: dict[str, str] = {}
-
 
 def get_connection() -> duckdb.DuckDBPyConnection:
     conn = duckdb.connect(":memory:")
@@ -34,12 +32,13 @@ def get_s3_client():
 
 
 def find_iceberg_table_path(table_name: str, schema: str = None) -> str:
+    # Sem cache: o dbt troca o diretorio fisico da tabela a cada run
+    # (materializacao "table" cria um <nome>__dbt_tmp-<uuid> novo e faz
+    # o swap no catalogo). Um path cacheado do processo fica orfao no
+    # primeiro run seguinte e o iceberg_scan passa a falhar (nao acha
+    # mais metadata.json ali). Relistar a cada chamada custa uma
+    # list_objects_v2, barato frente ao problema que evita.
     schema = schema or ICEBERG_SCHEMA
-    cache_key = f"{schema}/{table_name}"
-
-    if cache_key in _table_path_cache:
-        return _table_path_cache[cache_key]
-
     s3 = get_s3_client()
     prefix = f"{schema}/{table_name}"
 
@@ -48,13 +47,9 @@ def find_iceberg_table_path(table_name: str, schema: str = None) -> str:
     for obj in response.get("CommonPrefixes", []):
         dir_name = obj["Prefix"].rstrip("/")
         if dir_name.startswith(prefix):
-            path = f"s3://{MINIO_BUCKET}/{dir_name}"
-            _table_path_cache[cache_key] = path
-            return path
+            return f"s3://{MINIO_BUCKET}/{dir_name}"
 
-    path = f"s3://{MINIO_BUCKET}/{prefix}"
-    _table_path_cache[cache_key] = path
-    return path
+    return f"s3://{MINIO_BUCKET}/{prefix}"
 
 
 def query_iceberg(table_name: str, query_suffix: str = "", schema: str = None) -> list[dict]:
