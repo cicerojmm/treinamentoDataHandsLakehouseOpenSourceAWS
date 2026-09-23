@@ -1,0 +1,37 @@
+name: airflow-dags
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "code/airflow-dags/**"
+      - "code/dbt-project/**"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-push-bump.yml
+    secrets: inherit
+    with:
+      image-name: airflow-dags
+      dockerfile: code/airflow-dags/Dockerfile
+      build-context: "."
+      commit-message: "deploy(airflow-dags)"
+      pre-build-test-command: |
+        set -e
+        python3 -m venv /tmp/dbtvenv
+        /tmp/dbtvenv/bin/pip install -q "dbt-core>=1.9,<1.10" "dbt-trino>=1.9,<1.10"
+        /tmp/dbtvenv/bin/dbt deps --project-dir code/dbt-project
+        /tmp/dbtvenv/bin/dbt parse --project-dir code/dbt-project --profiles-dir code/dbt-project/profiles
+      post-build-test-command: |
+        set -e
+        docker run --rm -e AIRFLOW__COSMOS__ENABLE_CACHE=False "$IMAGE" python -c "
+        from airflow.models import DagBag
+        db = DagBag(dag_folder='/opt/airflow/dags')
+        assert not db.import_errors, db.import_errors
+        assert 'dbt_movielens' in db.dags
+        print('OK:', len(db.dags), 'dags,', len(db.dags['dbt_movielens'].tasks), 'tasks')
+        "
+      manifest-bump-command: |
+        sed -i -E "s/^(\s*tag: ).*/\1${TAG}/" apps/eks/airflow-app.yaml
+        sed -i -E "s/^(\s*worker_container_tag: ).*/\1${TAG}/" apps/eks/airflow-app.yaml

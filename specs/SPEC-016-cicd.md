@@ -3,7 +3,7 @@
 **Fase do projeto:** 5 — Automação de entrega
 **Pré-requisitos:** SPEC-002 (ECR), SPEC-015 (overlays EKS)
 **Bloqueia:** nenhum
-**Status:** Specify aprovado, Plan em elaboração (2026-09-23)
+**Status:** Plan aprovado, Implement em andamento (2026-09-23)
 
 ---
 

@@ -1,0 +1,127 @@
+name: Build, push and bump manifest
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: "Nome do repositorio ECR (data-platform/<image-name>)"
+        required: true
+        type: string
+      dockerfile:
+        description: "Path do Dockerfile"
+        required: true
+        type: string
+      build-context:
+        description: "Contexto de build (raiz do repo = '.')"
+        required: true
+        type: string
+      pre-build-test-command:
+        description: "Comando rodado no runner ANTES do build (nao precisa da imagem)"
+        required: false
+        type: string
+        default: ""
+      post-build-test-command:
+        description: "Comando rodado com 'docker run <imagem local> <comando>' DEPOIS do build, ANTES do push"
+        required: false
+        type: string
+        default: ""
+      manifest-bump-command:
+        description: "Comando que edita o(s) manifesto(s) usando a env var TAG"
+        required: true
+        type: string
+      commit-message:
+        description: "Prefixo do commit de bump (a tag e' concatenada no final)"
+        required: true
+        type: string
+
+concurrency:
+  group: build-push-${{ inputs.image-name }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  ECR_REGISTRY: 093499160510.dkr.ecr.us-east-2.amazonaws.com
+
+jobs:
+  build-push-bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Define tag (SHA curto)
+        run: echo "TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Pre-build tests
+        if: inputs.pre-build-test-command != ''
+        run: ${{ inputs.pre-build-test-command }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login no ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build (sem push ainda)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.build-context }}
+          file: ${{ inputs.dockerfile }}
+          tags: ${{ env.ECR_REGISTRY }}/data-platform/${{ inputs.image-name }}:${{ env.TAG }}
+          push: false
+          load: true
+          cache-from: type=gha,scope=${{ inputs.image-name }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.image-name }}
+
+      - name: Post-build tests (contra a imagem recem-buildada, ainda nao publicada)
+        if: inputs.post-build-test-command != ''
+        run: ${{ inputs.post-build-test-command }}
+        env:
+          IMAGE: ${{ env.ECR_REGISTRY }}/data-platform/${{ inputs.image-name }}:${{ env.TAG }}
+
+      - name: Push pro ECR
+        run: docker push "${ECR_REGISTRY}/data-platform/${{ inputs.image-name }}:${TAG}"
+
+      - name: Confirma imagem no ECR
+        run: |
+          aws ecr describe-images \
+            --region "$AWS_REGION" \
+            --repository-name "data-platform/${{ inputs.image-name }}" \
+            --image-ids imageTag="$TAG" \
+            --query 'imageDetails[0].imageTags' --output text
+
+      - name: Bump do manifesto
+        run: |
+          set -e
+          ${{ inputs.manifest-bump-command }}
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nada mudou no manifesto (tag ja era a mesma?), pulando commit."
+            exit 0
+          fi
+          git commit -m "${{ inputs.commit-message }}: ${TAG}"
+          n=0
+          until git push origin HEAD:main; do
+            n=$((n + 1))
+            if [ "$n" -ge 5 ]; then
+              echo "push falhou apos 5 tentativas"
+              exit 1
+            fi
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 5 + 1))
+          done

@@ -52,12 +52,17 @@ def find_iceberg_table_path(table_name: str, schema: str = None) -> str:
     return f"s3://{MINIO_BUCKET}/{prefix}"
 
 
+def _records_from_df(df) -> list[dict]:
+    # NULL numerico vira NaN no pandas, que o JSON padrao rejeita (500).
+    # Extraida a parte, sem depender de MinIO/DuckDB, pra testar isolado.
+    df = df.astype(object).where(df.notna(), None)
+    return df.to_dict(orient="records")
+
+
 def query_iceberg(table_name: str, query_suffix: str = "", schema: str = None) -> list[dict]:
     conn = get_connection()
     path = find_iceberg_table_path(table_name, schema)
     sql = f"SELECT * FROM iceberg_scan('{path}') {query_suffix}"
     result = conn.execute(sql).fetchdf()
     conn.close()
-    # NULL numerico vira NaN no pandas, que o JSON padrao rejeita (500).
-    result = result.astype(object).where(result.notna(), None)
-    return result.to_dict(orient="records")
+    return _records_from_df(result)

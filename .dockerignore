@@ -1,0 +1,7 @@
+.git
+.terraform
+*.tfstate*
+infra/
+docs/
+specs/
+.claude/

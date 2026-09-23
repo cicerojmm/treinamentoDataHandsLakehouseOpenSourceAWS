@@ -8,6 +8,7 @@
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
 .venv/
 venv/
 .env
@@ -33,6 +34,11 @@ crash.*.log
 
 # Docker
 .docker/
+
+# dbt (telemetria local, criada por "dbt parse"/"dbt deps")
+profiles/.user.yml
+dbt_packages/
+package-lock.yml
 
 # Build artifacts
 target/

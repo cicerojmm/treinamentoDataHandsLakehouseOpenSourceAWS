@@ -50,13 +50,13 @@ Não é bloqueante para os grupos C/D/E/F — só bloqueia o primeiro `terraform
 ### Grupo B — (eliminado)
 Existia só para importar o `metabase` no Terraform sem recriar do zero. Como `envs/shared` inteiro foi recriado do zero (decisão do usuário), o `metabase` já nasceu gerenciado junto com os outros 4 — não há mais nada pra importar.
 
-### Grupo C — Credenciais no GitHub (manual, do usuário)
+### Grupo C — Credenciais no GitHub (manual, do usuário) — PENDENTE
 
-**7. GitHub Secrets** `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` — o usuário copia da própria credencial local (`~/.aws/credentials` ou `aws configure get aws_access_key_id`/`aws_secret_access_key`) direto para Settings → Secrets and variables → Actions do repositório. Eu não leio nem imprimo esses valores. Documentado como passo manual em `docs/runbooks/cicd-setup.md` (tarefa 20).
+**7. GitHub Secrets** `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` — o usuário copia da própria credencial local (`aws configure get aws_access_key_id`/`aws_secret_access_key`) direto para Settings → Secrets and variables → Actions do repositório. Eu não leio nem imprimo esses valores. Passo a passo em `docs/runbooks/cicd-setup.md` (tarefa 21, concluída).
 
-**Dependência:** nenhuma — pode ser feita a qualquer momento, precisa só estar pronta antes do primeiro merge que dispara um workflow de verdade (Grupo E).
+**Dependência:** nenhuma — pode ser feita a qualquer momento, mas é pré-requisito para qualquer workflow (Grupo F) rodar de verdade (login no ECR falha sem isso).
 
-### Grupo D — Build da `airflow-dags` a partir da raiz
+### Grupo D — Build da `airflow-dags` a partir da raiz — CONCLUÍDO
 
 **8. `.dockerignore`** (novo, raiz do repo):
 ```
@@ -90,11 +90,12 @@ echo "Done! Image: $REPO:$TAG"
 ```
 `scripts/ensure-images-eks.sh` e `make images-eks`/`make bootstrap-eks` continuam funcionando sem alteração (mesma assinatura de `build.sh`).
 
-**11. Validar:** `bash code/airflow-dags/build.sh test-root-build` da raiz do repo, depois checar import das DAGs (tarefa 16) contra a imagem nova.
+**11. Validar: CONCLUÍDO.** `bash code/airflow-dags/build.sh test-root-build` da raiz do repo buildou com sucesso; import das DAGs (tarefa 16) confirmado contra a imagem, 33 tasks, sem erro. Imagem de teste removida depois.
 
 **Dependência:** 8→9→10→11. Independente dos grupos A/B/C.
 
-### Grupo E — Testes (portão antes do build)
+### Grupo E — Testes (portão antes do build) — CONCLUÍDO
+`pytest code/api-service/tests/ -v`: 4/4 passou. `dbt parse`: exit 0. Precisou de um `code/api-service/pytest.ini` (`pythonpath = .`) não previsto no plano original, pra `from app.main import app` resolver fora de um `pip install -e`.
 
 **12. `.gitignore`** (raiz ou `code/dbt-project/`): adicionar `profiles/.user.yml` (arquivo de telemetria que o `dbt parse` cria — observado ao testar localmente hoje).
 
@@ -132,33 +133,41 @@ def test_nan_vira_null():
     assert records[1]["b"] is None
 ```
 
-**16. Teste de import das DAGs** (step do workflow, não é arquivo do repo):
+**16. Teste de import das DAGs** (step do workflow, não é arquivo do repo) — validado nesta sessão contra a imagem real, com 2 correções que o plano original não previa:
+- `DagBag(dag_folder=...)` **sem** `include_examples` — esse kwarg não existe mais no Airflow 3.3.0 (`TypeError: unexpected keyword argument`).
+- `AIRFLOW__COSMOS__ENABLE_CACHE=False` como env var do container — sem isso, o `DbtTaskGroup` do Cosmos tenta **gravar** um cache de parsing como Airflow Variable no banco de metadados durante o próprio parse da DAG (não é só leitura), e quebra com `sqlite3.OperationalError: no such table: variable` porque não há banco migrado no container standalone.
 ```bash
-docker run --rm <imagem> python -c "
+docker run --rm -e AIRFLOW__COSMOS__ENABLE_CACHE=False <imagem> python -c "
 from airflow.models import DagBag
-db = DagBag(dag_folder='/opt/airflow/dags', include_examples=False)
+db = DagBag(dag_folder='/opt/airflow/dags')
 assert not db.import_errors, db.import_errors
 assert 'dbt_movielens' in db.dags
 "
 ```
+Testado: 2 dags, `dbt_movielens` com 33 tasks, sem erro de import.
 
 **Dependência:** 13 antes de 15. Resto independente. Independente dos outros grupos.
 
-### Grupo F — Workflows do GitHub Actions (depende de C, D, E prontos)
+### Grupo F — Workflows do GitHub Actions — ESCRITOS, validados com `actionlint` (0 problemas); execução real pendente dos Secrets (Grupo C)
 
-**17. `.github/workflows/_build-push-bump.yml`** (reutilizável, `workflow_call`) — inputs: `image-name`, `dockerfile`, `build-context`, `test-command` (opcional), `manifest-path`, regra de substituição da tag. Implementa a seção 3.1 do spec: checkout → testes → login ECR (`aws-actions/configure-aws-credentials` com os secrets da tarefa 7) → build+push com tag `${GITHUB_SHA::7}` (cache de camadas) → confirma imagem no ECR → bump do manifesto (commit + push com `git pull --rebase` e retry) → `concurrency` por imagem.
+**17. `.github/workflows/_build-push-bump.yml`** — CONCLUÍDO, com uma correção de desenho em relação ao plano original: os testes viraram **`pre-build-test-command`** (roda no runner, antes do `docker build`) e **`post-build-test-command`** (roda com `docker run` contra a imagem recém-buildada, antes do `docker push`) — o teste de import das DAGs (tarefa 16) só existe depois que a imagem é montada, não dá pra rodar "antes do build" como o plano original supunha. A imagem só é publicada (`docker push`) depois dos dois passarem, então o critério de aceite 5 (teste quebrado não publica nada) continua valendo.
 
-**18. `.github/workflows/airflow-dags.yml`** — `paths: [code/airflow-dags/**, code/dbt-project/**]`, chama o reutilizável com os testes das tarefas 12-16, atualiza os **dois** campos do `apps/eks/airflow-app.yaml` (`images.airflow.tag` e `config.kubernetes.worker_container_tag`) no mesmo commit.
+**18. `.github/workflows/airflow-dags.yml`** — CONCLUÍDO. `paths: [code/airflow-dags/**, code/dbt-project/**]`. Pre-build: `dbt deps` + `dbt parse`. Post-build: import das DAGs com `AIRFLOW__COSMOS__ENABLE_CACHE=False` (achado da tarefa 16). Bump dos **dois** campos do `apps/eks/airflow-app.yaml` (`tag:` e `worker_container_tag:`) no mesmo commit, via `sed` ancorado no nome da chave (idempotente, funciona em qualquer formato de tag anterior).
 
-**19. `.github/workflows/api-service.yml`** — `paths: [code/api-service/**]`, `paths-ignore: [code/api-service/k8s-eks/**]`, testes da tarefa 15, atualiza `code/api-service/k8s-eks/kustomization.yaml`.
+**19. `.github/workflows/api-service.yml`** — CONCLUÍDO. Correção de sintaxe: GitHub Actions não permite `paths` + `paths-ignore` juntos no mesmo gatilho (erro de validação da própria plataforma) — usei `!code/api-service/k8s-eks/**` dentro da mesma lista `paths`, que é a forma suportada de excluir um path. Pre-build: pytest (tarefa 15). Bump do `kustomization.yaml`.
 
-**20. `.github/workflows/metabase.yml`** — `paths: [code/metabase/**]`, sem testes de código próprio, atualiza `charts/metabase-eks/metabase.yaml`.
+**20. `.github/workflows/metabase.yml`** — CONCLUÍDO. `paths: [code/metabase/**]`, sem testes de código próprio. Bump do `charts/metabase-eks/metabase.yaml`.
 
-### Grupo G — Documentação
+### Grupo G — Documentação — CONCLUÍDO
 
-**21. `docs/runbooks/cicd-setup.md`** (novo): como pegar a credencial local e configurar os Secrets (tarefa 7), como testar um workflow com `workflow_dispatch`, como fazer rollback (revert do commit de bump), nota sobre o risco de usar credenciais root e quando migrar para um IAM dedicado.
+**21. `docs/runbooks/cicd-setup.md`** — criado: como pegar a credencial local e configurar os Secrets, como testar com `workflow_dispatch`, rollback, nota sobre o risco de credenciais root.
 
-**22. `specs/SPEC-016-cicd.md`** — `Status:` → `Plan aprovado` após aprovação deste documento (feito no início do `/implement-spec`).
+**22. `specs/SPEC-016-cicd.md`** — `Status:` já atualizado para `Plan aprovado, Implement em andamento` no início desta fase.
+
+## Pendências para fechar o Implement
+1. **Grupo C (usuário):** configurar `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` nos GitHub Secrets — sem isso nenhum workflow consegue logar no ECR.
+2. **Prova end-to-end real:** depois dos Secrets configurados, disparar um `workflow_dispatch` (ou um push de teste) pra confirmar build→push→bump→(ArgoCD sync, quando o cluster existir) na prática — o que só é testável de fato depois que os Secrets existirem e, para o passo do ArgoCD, depois que o `envs/eks` for recriado (decisão do usuário: "depois criamos o ambiente pelo CI/CD").
+3. **`terraform apply` do `envs/eks`** (recriar o cluster) — deliberadamente adiado pelo usuário para depois do CI/CD estar pronto, não é um item quebrado do plano.
 
 ## Riscos identificados
 - **Credenciais root nos GitHub Secrets:** qualquer vazamento (log acidental, dependência de Action comprometida, injeção num step) dá controle total da conta AWS, não só do ECR. Risco aceito pelo usuário; mitigação futura é o IAM dedicado (fora de escopo aqui).

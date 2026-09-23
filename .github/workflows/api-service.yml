@@ -1,0 +1,26 @@
+name: api-service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "code/api-service/**"
+      - "!code/api-service/k8s-eks/**"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-push-bump.yml
+    secrets: inherit
+    with:
+      image-name: api-service
+      dockerfile: code/api-service/Dockerfile
+      build-context: code/api-service
+      commit-message: "deploy(api-service)"
+      pre-build-test-command: |
+        set -e
+        python3 -m venv /tmp/apivenv
+        /tmp/apivenv/bin/pip install -q -r code/api-service/requirements.txt -r code/api-service/requirements-dev.txt
+        cd code/api-service && /tmp/apivenv/bin/pytest tests/ -v
+      manifest-bump-command: |
+        sed -i -E "s#(data-platform/api-service:)[A-Za-z0-9._-]+#\1${TAG}#" code/api-service/k8s-eks/kustomization.yaml

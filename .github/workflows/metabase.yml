@@ -1,0 +1,20 @@
+name: metabase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "code/metabase/**"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-push-bump.yml
+    secrets: inherit
+    with:
+      image-name: metabase
+      dockerfile: code/metabase/Dockerfile
+      build-context: code/metabase
+      commit-message: "deploy(metabase)"
+      manifest-bump-command: |
+        sed -i -E "s#(data-platform/metabase:)[A-Za-z0-9._-]+#\1${TAG}#" charts/metabase-eks/metabase.yaml

@@ -8,14 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 USER airflow
 
-COPY requirements.txt /tmp/requirements.txt
+# Contexto de build = raiz do repo (make images-eks, CI/CD e
+# code/airflow-dags/build.sh rodam da raiz).
+COPY code/airflow-dags/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 RUN pip install --no-cache-dir \
     "astronomer-cosmos[dbt-trino]>=1.5.0" \
     "dbt-trino>=1.9,<1.10"
 
-COPY --chown=airflow:root dags/ /opt/airflow/dags/
-
-# dbt project - copiado de code/dbt-project durante o build
-COPY --chown=airflow:root dbt-project/ /opt/airflow/dbt/movielens/
+COPY --chown=airflow:root code/airflow-dags/dags/ /opt/airflow/dags/
+COPY --chown=airflow:root code/dbt-project/ /opt/airflow/dbt/movielens/
