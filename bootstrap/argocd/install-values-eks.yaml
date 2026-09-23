@@ -1,8 +1,3 @@
-server:
-  service:
-    type: NodePort
-    nodePortHttp: 30080
-
 configs:
   params:
     server.insecure: true
@@ -18,6 +13,8 @@ controller:
       cpu: 1000m
       memory: 1536Mi
 
+# Service fica ClusterIP (default): nodes em subnet privada, acesso via
+# port-forward (make argocd-ui-eks).
 server:
   resources:
     requests:

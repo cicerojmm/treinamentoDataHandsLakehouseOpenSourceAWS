@@ -1,7 +1,17 @@
+# Um unico bloco "server:" (havia dois; o YAML fica so' com o ultimo e o
+# NodePort era descartado). NodePort 30080 -> localhost:8080 via
+# infra/clusters/local/kind-config.yaml.
 server:
   service:
     type: NodePort
     nodePortHttp: 30080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
 
 configs:
   params:
@@ -15,15 +25,6 @@ controller:
     limits:
       cpu: 500m
       memory: 512Mi
-
-server:
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 200m
-      memory: 256Mi
 
 repoServer:
   resources:
