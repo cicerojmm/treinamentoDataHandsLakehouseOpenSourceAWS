@@ -29,4 +29,16 @@ spec:
               for b in bronze warehouse silver gold airbyte-storage; do
                 mc mb "minio/$b" --ignore-existing
               done
+              # Manifest do conector S3 do OpenMetadata: sem ele so os
+              # buckets sao catalogados, sem os arquivos/schemas.
+              cat <<'EOF' | mc pipe minio/bronze/openmetadata.json
+              {
+                "entries": [
+                  {"dataPath": "movielens/movies",  "structureFormat": "parquet", "isPartitioned": false},
+                  {"dataPath": "movielens/ratings", "structureFormat": "parquet", "isPartitioned": false},
+                  {"dataPath": "movielens/links",   "structureFormat": "parquet", "isPartitioned": false},
+                  {"dataPath": "movielens/tags",    "structureFormat": "parquet", "isPartitioned": false}
+                ]
+              }
+              EOF
               mc ls minio
