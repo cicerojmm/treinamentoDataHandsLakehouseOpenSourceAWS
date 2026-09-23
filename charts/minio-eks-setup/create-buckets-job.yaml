@@ -1,4 +1,5 @@
-# Cria os buckets do lakehouse no MinIO do EKS (idempotente).
+# Cria os buckets do lakehouse no MinIO do EKS (idempotente). Buckets e
+# manifest vem do ConfigMap minio-setup-config (kustomization.yaml).
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -26,19 +27,17 @@ spec:
               until mc ready minio; do
                 echo "aguardando MinIO..."; sleep 10
               done
-              for b in bronze warehouse silver gold airbyte-storage; do
+              for b in $(cat /config/buckets); do
                 mc mb "minio/$b" --ignore-existing
               done
               # Manifest do conector S3 do OpenMetadata: sem ele so os
               # buckets sao catalogados, sem os arquivos/schemas.
-              cat <<'EOF' | mc pipe minio/bronze/openmetadata.json
-              {
-                "entries": [
-                  {"dataPath": "movielens/movies",  "structureFormat": "parquet", "isPartitioned": false},
-                  {"dataPath": "movielens/ratings", "structureFormat": "parquet", "isPartitioned": false},
-                  {"dataPath": "movielens/links",   "structureFormat": "parquet", "isPartitioned": false},
-                  {"dataPath": "movielens/tags",    "structureFormat": "parquet", "isPartitioned": false}
-                ]
-              }
-              EOF
+              mc cp /config/openmetadata-bronze.json minio/bronze/openmetadata.json
               mc ls minio
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: minio-setup-config

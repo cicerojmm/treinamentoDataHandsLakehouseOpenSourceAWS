@@ -3,3 +3,18 @@ kind: Kustomization
 
 resources:
   - create-buckets-job.yaml
+
+# ConfigMap e' recurso normal (nao hook): numa app nova ele deixa a
+# Application OutOfSync, o que dispara o auto-sync e roda o Job (hook).
+# Sem ele a app so tinha o hook, nascia Synced e o Job nunca rodava.
+# Mudar buckets/manifest aqui tambem re-dispara o Job automaticamente.
+configMapGenerator:
+  - name: minio-setup-config
+    namespace: data-platform
+    literals:
+      - buckets=bronze warehouse silver gold airbyte-storage
+    files:
+      - openmetadata-bronze.json
+
+generatorOptions:
+  disableNameSuffixHash: true

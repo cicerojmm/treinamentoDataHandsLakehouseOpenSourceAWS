@@ -1,6 +1,6 @@
 .PHONY: bootstrap-local destroy-local argocd-password argocd-ui run-local \
 	check-prereqs-eks plan-eks images-eks bootstrap-eks destroy-eks \
-	wait-eks urls-eks argocd-password-eks argocd-ui-eks
+	wait-eks verify-eks urls-eks argocd-password-eks argocd-ui-eks
 
 CLUSTER_NAME := data-platform-local
 KIND_CONFIG := infra/clusters/local/kind-config.yaml
@@ -106,13 +106,13 @@ bootstrap-eks: check-prereqs-eks
 		read -p "Continuar? [s/N] " confirm; \
 		case "$$confirm" in [sS]|[sS][iI][mM]) ;; *) echo "Cancelado."; exit 1;; esac; \
 	fi
-	@echo "==> [1/6] terraform apply em $(EKS_DIR)..."
+	@echo "==> [1/7] terraform apply em $(EKS_DIR)..."
 	cd $(EKS_DIR) && terraform init -input=false && terraform plan -out=tfplan && terraform apply tfplan
-	@echo "==> [2/6] Configurando kubeconfig (contexto: $(EKS_CONTEXT))..."
+	@echo "==> [2/7] Configurando kubeconfig (contexto: $(EKS_CONTEXT))..."
 	aws eks update-kubeconfig --name $(EKS_CLUSTER_NAME) --region $(AWS_REGION) --alias $(EKS_CONTEXT)
-	@echo "==> [3/6] Garantindo imagens customizadas no ECR (build só se faltar)..."
+	@echo "==> [3/7] Garantindo imagens customizadas no ECR (build só se faltar)..."
 	@AWS_REGION=$(AWS_REGION) bash scripts/ensure-images-eks.sh
-	@echo "==> [4/6] Instalando/atualizando ArgoCD..."
+	@echo "==> [4/7] Instalando/atualizando ArgoCD..."
 	helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
 	helm repo update
 	@if helm status argocd -n argocd --kube-context=$(EKS_CONTEXT) >/dev/null 2>&1; then \
@@ -120,10 +120,12 @@ bootstrap-eks: check-prereqs-eks
 	else \
 		helm install argocd argo/argo-cd -n argocd --kube-context=$(EKS_CONTEXT) --create-namespace -f bootstrap/argocd/install-values-eks.yaml --wait --timeout 5m; \
 	fi
-	@echo "==> [5/6] Aplicando app-of-apps (única exceção não-GitOps: bootstrap do próprio ArgoCD)..."
+	@echo "==> [5/7] Aplicando app-of-apps (única exceção não-GitOps: bootstrap do próprio ArgoCD)..."
 	kubectl --context=$(EKS_CONTEXT) apply -n argocd -f apps/eks/app-of-apps.yaml
-	@echo "==> [6/6] Aguardando todas as Applications ficarem Synced/Healthy..."
+	@echo "==> [6/7] Aguardando todas as Applications ficarem Synced/Healthy..."
 	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/wait-argocd-healthy.sh 1800 15 14
+	@echo "==> [7/7] Verificando buckets do MinIO (Synced/Healthy nao garante que Jobs de hook rodaram)..."
+	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/verify-minio-buckets.sh 300
 	@echo ""
 	@echo "=========================================="
 	@echo "Bootstrap EKS concluído!"
@@ -153,6 +155,9 @@ destroy-eks: check-prereqs-eks
 
 wait-eks:
 	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/wait-argocd-healthy.sh
+
+verify-eks:
+	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/verify-minio-buckets.sh 60
 
 urls-eks:
 	@echo "URLs das aplicações (LoadBalancer NLB):"

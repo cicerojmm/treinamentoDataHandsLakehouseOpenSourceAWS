@@ -1,0 +1,8 @@
+{
+  "entries": [
+    {"dataPath": "movielens/movies",  "structureFormat": "parquet", "isPartitioned": false},
+    {"dataPath": "movielens/ratings", "structureFormat": "parquet", "isPartitioned": false},
+    {"dataPath": "movielens/links",   "structureFormat": "parquet", "isPartitioned": false},
+    {"dataPath": "movielens/tags",    "structureFormat": "parquet", "isPartitioned": false}
+  ]
+}
