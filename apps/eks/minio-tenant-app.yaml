@@ -21,6 +21,13 @@ spec:
               volumesPerServer: 1
               size: 50Gi
               storageClassName: gp3
+              # Medido em carga (2026-09-23): pico 167Mi, ~11m cpu.
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 256Mi
+                limits:
+                  memory: 768Mi
           mountPath: /data
           certificate:
             requestAutoCert: false
