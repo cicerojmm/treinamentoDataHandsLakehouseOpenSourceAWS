@@ -93,7 +93,7 @@ aws ec2 stop-instances --region us-east-2 --instance-ids i-0de2b9ce8d797f0ac
 
 ## Quick Start (EKS)
 
-Cria infraestrutura real na AWS (~US\$ 430/mês: EKS + 3x t3.large + NAT
+Cria infraestrutura real na AWS (~US\$ 490/mês: EKS + 4x t3.large + NAT
 + 6 LoadBalancers). Ver `specs/SPEC-014-terraform-eks.md` e
 `specs/SPEC-015-overlays-eks.md` para o detalhamento.
 

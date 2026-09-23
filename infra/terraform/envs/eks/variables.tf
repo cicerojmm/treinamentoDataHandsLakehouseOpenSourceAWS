@@ -25,7 +25,7 @@ variable "node_instance_type" {
 variable "node_desired_size" {
   description = "Número desejado de nodes"
   type        = number
-  default     = 3
+  default     = 4
 }
 
 variable "tags" {

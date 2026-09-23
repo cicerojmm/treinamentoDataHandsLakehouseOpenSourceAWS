@@ -98,7 +98,7 @@ bootstrap-eks: check-prereqs-eks
 	@if [ "$(CONFIRM)" != "yes" ]; then \
 		echo "=========================================="; \
 		echo "Isso vai criar recursos AWS reais:"; \
-		echo "  - EKS + 3x t3.large + NAT Gateway (~US\$$ 315/mês)"; \
+		echo "  - EKS + 4x t3.large + NAT Gateway (~US\$$ 375/mês)"; \
 		echo "  - 6 LoadBalancers NLB (~US\$$ 115/mês)"; \
 		echo "  - terraform apply sozinho leva ~15 min;"; \
 		echo "    sync completo do ArgoCD mais ~15-20 min."; \
