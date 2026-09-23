@@ -129,22 +129,19 @@ spec:
         createUserJob:
           useHelmHooks: true
 
-        # migrateDatabaseJob NAO pode ser PostSync (useHelmHooks: true):
-        # os pods do Airflow tem um initContainer "wait-for-airflow-
-        # migrations" que trava ate a migracao rodar, e o ArgoCD so
-        # dispara hooks PostSync depois que TODOS os recursos da fase
-        # Sync (Deployments/StatefulSet) ficam Healthy -> deadlock
-        # circular numa instalacao 100% do zero (reproduzido: "waiting
-        # for healthy state of apps/StatefulSet/airflow-triggerer" preso
-        # indefinidamente, Job de migracao nunca chega a ser criado).
-        # Hook nativo do ArgoCD (PreSync) roda antes dos Deployments, e
-        # hook-delete-policy BeforeHookCreation evita o problema de
-        # campo imutavel do Job em syncs seguintes (mesmo mecanismo do
-        # hook-delete-policy do Helm, so que na fase certa).
+        # migrateDatabaseJob como hook Sync do ArgoCD (roda junto com o
+        # apply dos manifests):
+        # - PostSync (useHelmHooks: true) = deadlock: os pods tem
+        #   initContainer wait-for-airflow-migrations e o ArgoCD so
+        #   dispara PostSync depois que tudo fica Healthy.
+        # - PreSync tambem trava num cluster novo: o Job monta o
+        #   ConfigMap airflow-config e le o Secret airflow-metadata, que
+        #   so sao criados na fase Sync.
+        # BeforeHookCreation evita o erro de campo imutavel do Job.
         migrateDatabaseJob:
           useHelmHooks: false
           jobAnnotations:
-            argocd.argoproj.io/hook: PreSync
+            argocd.argoproj.io/hook: Sync
             argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
 
         airflowLocalSettings: ""
