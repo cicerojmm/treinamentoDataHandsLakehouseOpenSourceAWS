@@ -38,41 +38,23 @@ spec:
             database: airbyte
             user: airbyte
             password: airbyte123
-          # type: s3 (nao "minio"): com type: minio o chart cria
-          # INCONDICIONALMENTE um StatefulSet airbyte-minio via hook
-          # pre-install (templates/minio.yaml: {{- if eq storage.type
-          # "minio" }}, sem toggle pra desativar) — deploy indesejado
-          # (decisao do projeto e' MinIO externo, ver SPEC-006) que
-          # travou o sync em ErrImagePull.
-          #
-          # PASSO MANUAL NECESSARIO apos qualquer sync inicial deste
-          # app (cluster novo, ou selfHeal apos editar este arquivo):
-          # com type: s3 o chart SEMPRE renderiza S3_PATH_STYLE_ACCESS
-          # vazio (_helpers.tpl:s3PathStyleAccess so seta "true" quando
-          # type=="minio" — nao da pra sobrescrever via values). Sem
-          # path-style, o client Java do Airbyte nao fala com o MinIO
-          # (sem DNS wildcard pra virtual-hosted-style), causando 500
-          # ao testar/rodar qualquer source. Corrigir com:
-          #   kubectl patch configmap airbyte-airbyte-env -n ingestion \
-          #     --type merge -p '{"data":{"S3_PATH_STYLE_ACCESS":"true"}}'
-          #   kubectl rollout restart deployment/airbyte-server \
-          #     deployment/airbyte-worker -n ingestion
-          # Ja tentamos automatizar isso via Job (PostSync hook) mas o
-          # ArgoCD deste cluster mostrou renders inconsistentes/
-          # desatualizados especificamente pra esse Job (imagem antiga
-          # presa mesmo apos varios refresh/delete+recreate) — nao
-          # resolvido, abandonado por ora. Ver git log deste arquivo
-          # para o historico da investigacao.
+          # type: minio (igual ao local). NAO usar type: s3: o chart nao
+          # injeta endpoint nenhum nesse modo e o SDK vai pra AWS S3
+          # publica — onde existe um bucket "airbyte-storage" de outra
+          # conta em eu-west-1 (erro 500: "region 'us-east-1' is wrong;
+          # expecting 'eu-west-1'"). Com type: minio o chart seta
+          # MINIO_ENDPOINT e S3_PATH_STYLE_ACCESS=true sozinho.
           storage:
-            type: s3
+            type: minio
             storageSecretName: airbyte-storage-secret
             bucket:
               log: airbyte-storage
               state: airbyte-storage
               workloadOutput: airbyte-storage
-            s3:
-              region: "us-east-1"
-              authenticationType: credentials
+            minio:
+              endpoint: http://minio-eks-hl.data-platform.svc.cluster.local:9000
+              accessKeyIdSecretKey: AWS_ACCESS_KEY_ID
+              secretAccessKeySecretKey: AWS_SECRET_ACCESS_KEY
 
         webapp:
           enabled: true
@@ -120,23 +102,25 @@ spec:
         postgresql:
           enabled: false
 
+        # Com type: minio o chart sempre cria um StatefulSet airbyte-minio
+        # (hook pre-install, sem toggle — "enabled" e' ignorado). Fica
+        # ocioso; o Airbyte usa o MinIO da plataforma. A tag default foi
+        # removida do Docker Hub (causava ErrImagePull), por isso quay.io.
+        # Mesma tag do chart porque o pod airbyte-minio-create-bucket usa
+        # essa imagem com "mc policy set" (comando antigo).
         minio:
-          enabled: false
+          image:
+            repository: quay.io/minio/minio
+            tag: RELEASE.2023-11-20T22-40-07Z
 
         airbyteBootloader:
           enabled: false
   destination:
     server: https://kubernetes.default.svc
     namespace: ingestion
-  # (removido) ignoreDifferences para StatefulSet airbyte-minio +
-  # ConfigMap airbyte-airbyte-env/MINIO_ENDPOINT, combinado com
-  # RespectIgnoreDifferences=true, era residuo de quando o projeto
-  # usava storage.type=minio. Esse combo faz o ArgoCD NUNCA podar
-  # recursos que batem numa regra de ignoreDifferences, mesmo quando
-  # deixam de fazer parte do estado desejado — e' a causa raiz de
-  # airbyte-minio reaparecer repetidamente e do ConfigMap voltando pra
-  # valores antigos apos qualquer sync, mesmo com o spec correto
-  # (type: s3) confirmado no objeto Application ao vivo.
+  # Nao usar ignoreDifferences + RespectIgnoreDifferences=true aqui: o
+  # ArgoCD deixa de podar/atualizar recursos que batem na regra
+  # (ConfigMap airbyte-airbyte-env ficava com valores antigos).
   syncPolicy:
     automated:
       prune: true
