@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     uses: ./.github/workflows/_build-push-bump.yml
+    permissions:
+      contents: write
     secrets: inherit
     with:
       image-name: metabase
