@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: metabase
-          image: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/metabase:v20260919110500
+          image: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/metabase:0dd2a0c
           ports:
             - containerPort: 3000
           env:
