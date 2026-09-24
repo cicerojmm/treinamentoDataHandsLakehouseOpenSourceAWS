@@ -18,7 +18,7 @@ spec:
         images:
           airflow:
             repository: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/airflow-dags
-            tag: 1564abc
+            tag: 662ef0b
             pullPolicy: Always
 
         postgresql:
@@ -204,7 +204,7 @@ spec:
           kubernetes:
             namespace: ingestion
             worker_container_repository: 093499160510.dkr.ecr.us-east-2.amazonaws.com/data-platform/airflow-dags
-            worker_container_tag: 1564abc
+            worker_container_tag: 662ef0b
             delete_worker_pods: "True"
             delete_worker_pods_on_failure: "False"
           kubernetes_executor:
