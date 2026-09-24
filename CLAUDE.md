@@ -110,7 +110,7 @@ concluído no status abaixo.
 - [x] SPEC-013: OpenMetadata — Implementado (catálogo + linhagem)
 - [x] SPEC-014: Terraform EKS — Implementado (cluster `data-platform-eks`, K8s 1.32, 4x t3.large (ampliado de 3 em 2026-09-23: saturação de CPU), us-east-2; validado 2026-09-22, 7/7 critérios)
 - [x] SPEC-015: Overlays EKS — Implementado (17→20 Applications conforme evoluiu); validado 2026-09-23, 5/5 critérios (subagent independente, pipeline Airbyte→Airflow→dbt→API disparado de ponta a ponta + query real no Trino)
-- [ ] SPEC-016: CI/CD (imagens) — Implement concluído 2026-09-23 (workflows + testes; aguardando Secrets do usuário e recriação do envs/eks antes do Validate)
+- [x] SPEC-016: CI/CD (imagens) — Implementado; validado 2026-09-24, 9/9 critérios (subagent independente, pushes reais nos 3 workflows + teste quebrado provando o critério de gate)
 - [ ] SPEC-017: CI/CD (infraestrutura/Terraform) — Implement concluído 2026-09-24 (Makefile em sub-alvos + infra-bootstrap.yml); aguardando Secrets do usuário para rodar de verdade, antes do Validate
 
 (Atualizar esta seção ao final de cada fase de Validate bem-sucedida.)

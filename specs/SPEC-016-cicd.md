@@ -3,9 +3,9 @@
 **Fase do projeto:** 5 — Automação de entrega
 **Pré-requisitos:** SPEC-002 (ECR), SPEC-015 (overlays EKS)
 **Bloqueia:** SPEC-017 (CI/CD de infraestrutura)
-**Status:** Implement concluído (arquivos/testes/workflows); aguardando
-Secrets do GitHub (ação do usuário) + recriação do `envs/eks` antes do
-`/validate-spec` (2026-09-23)
+**Status:** Concluído — validado 2026-09-24, 9/9 critérios (subagent
+independente, com pushes reais disparando os 3 workflows e um teste
+quebrado deliberado provando o critério 5)
 
 ---
 
