@@ -3,9 +3,9 @@
 **Fase do projeto:** 5 — Automação de entrega
 **Pré-requisitos:** SPEC-016 (CI/CD de imagens), SPEC-014 (Terraform EKS)
 **Bloqueia:** nenhum
-**Status:** Implement concluído (2026-09-24); aguardando Secrets do
-GitHub (SPEC-016, ainda pendente) para rodar o `workflow_dispatch` de
-verdade, antes do `/validate-spec`
+**Status:** Concluído — validado 2026-09-24, 5/5 critérios (subagent
+independente: 3 jobs reais na ordem certa, idempotência confirmada,
+ponta a ponta CI→ArgoCD confirmado no cluster)
 
 ---
 
