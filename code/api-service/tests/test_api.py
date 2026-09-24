@@ -11,13 +11,6 @@ def test_health():
     assert client.get("/health").status_code == 200
 
 
-def test_spec016_revalidacao_teste_quebrado_deliberado():
-    # SPEC-016 re-validacao (criterio 5): teste quebrado de proposito para
-    # confirmar que o workflow falha ANTES de publicar imagem/bump manifesto.
-    # Sera revertido apos confirmacao.
-    assert False
-
-
 def test_sem_api_key_401():
     assert client.get("/api/v1/movies").status_code == 401
 

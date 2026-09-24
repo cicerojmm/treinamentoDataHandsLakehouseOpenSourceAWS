@@ -1,4 +1,3 @@
--- SPEC-016 re-validation: no-op comment to trigger airflow-dags.yml CI (2026-09-24)
 {{
     config(
         materialized='table'

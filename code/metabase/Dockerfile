@@ -1,4 +1,3 @@
-# SPEC-016 re-validation: no-op comment to trigger metabase.yml CI (2026-09-24)
 FROM metabase/metabase:v0.50.26
 
 # Download Starburst Trino driver
