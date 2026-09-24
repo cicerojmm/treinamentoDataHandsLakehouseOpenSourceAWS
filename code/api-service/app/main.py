@@ -1,3 +1,4 @@
+# validacao SPEC-016: push de teste do CI (revertido em seguida)
 from fastapi import FastAPI
 
 from app.routers import movies
