@@ -35,6 +35,13 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+      # check-prereqs-eks (chamado por images-eks) confere os 5 binarios
+      # do uso local (aws/kubectl/helm/terraform/docker) sem distinguir
+      # sub-alvo. kubectl/helm/aws ja vem no runner ubuntu-latest;
+      # terraform nao, por isso o setup aqui mesmo sem este job usá-lo.
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.1"
       - run: make images-eks
 
   deploy:
@@ -50,4 +57,9 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       - uses: azure/setup-kubectl@v4
       - uses: azure/setup-helm@v4
+      # mesmo motivo do job build-images: check-prereqs-eks exige
+      # terraform no PATH mesmo este job nao usando.
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.1"
       - run: make deploy-argocd-eks
