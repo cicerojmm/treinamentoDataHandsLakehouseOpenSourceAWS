@@ -1,5 +1,6 @@
 .PHONY: bootstrap-local destroy-local argocd-password argocd-ui run-local \
-	check-prereqs-eks plan-eks images-eks bootstrap-eks destroy-eks \
+	check-prereqs-eks plan-eks images-eks terraform-apply-eks deploy-argocd-eks \
+	bootstrap-eks destroy-eks \
 	wait-eks verify-eks urls-eks argocd-password-eks argocd-ui-eks
 
 CLUSTER_NAME := data-platform-local
@@ -94,6 +95,35 @@ plan-eks: check-prereqs-eks
 images-eks: check-prereqs-eks
 	@AWS_REGION=$(AWS_REGION) bash scripts/ensure-images-eks.sh
 
+terraform-apply-eks: check-prereqs-eks
+	@echo "==> terraform apply em $(EKS_DIR)..."
+	cd $(EKS_DIR) && terraform init -input=false && terraform plan -out=tfplan && terraform apply tfplan
+	@echo "==> Configurando kubeconfig (contexto: $(EKS_CONTEXT))..."
+	aws eks update-kubeconfig --name $(EKS_CLUSTER_NAME) --region $(AWS_REGION) --alias $(EKS_CONTEXT)
+
+# Reconfigura o kubeconfig aqui tambem (nao so' no terraform-apply-eks):
+# no GitHub Actions cada job roda numa VM efemera separada, o kubeconfig
+# gerado no job anterior nao chega neste. Idempotente e barato (so' le
+# metadado do cluster na API da AWS), e deixa o alvo utilizavel sozinho
+# sem depender de ter acabado de rodar terraform-apply-eks antes.
+deploy-argocd-eks: check-prereqs-eks
+	@echo "==> Configurando kubeconfig (contexto: $(EKS_CONTEXT))..."
+	aws eks update-kubeconfig --name $(EKS_CLUSTER_NAME) --region $(AWS_REGION) --alias $(EKS_CONTEXT)
+	@echo "==> Instalando/atualizando ArgoCD..."
+	helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
+	helm repo update
+	@if helm status argocd -n argocd --kube-context=$(EKS_CONTEXT) >/dev/null 2>&1; then \
+		helm upgrade argocd argo/argo-cd -n argocd --kube-context=$(EKS_CONTEXT) -f bootstrap/argocd/install-values-eks.yaml --wait --timeout 5m; \
+	else \
+		helm install argocd argo/argo-cd -n argocd --kube-context=$(EKS_CONTEXT) --create-namespace -f bootstrap/argocd/install-values-eks.yaml --wait --timeout 5m; \
+	fi
+	@echo "==> Aplicando app-of-apps (única exceção não-GitOps: bootstrap do próprio ArgoCD)..."
+	kubectl --context=$(EKS_CONTEXT) apply -n argocd -f apps/eks/app-of-apps.yaml
+	@echo "==> Aguardando todas as Applications ficarem Synced/Healthy..."
+	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/wait-argocd-healthy.sh 1800 15 14
+	@echo "==> Verificando buckets do MinIO (Synced/Healthy nao garante que Jobs de hook rodaram)..."
+	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/verify-minio-buckets.sh 300
+
 bootstrap-eks: check-prereqs-eks
 	@if [ "$(CONFIRM)" != "yes" ]; then \
 		echo "=========================================="; \
@@ -106,26 +136,12 @@ bootstrap-eks: check-prereqs-eks
 		read -p "Continuar? [s/N] " confirm; \
 		case "$$confirm" in [sS]|[sS][iI][mM]) ;; *) echo "Cancelado."; exit 1;; esac; \
 	fi
-	@echo "==> [1/7] terraform apply em $(EKS_DIR)..."
-	cd $(EKS_DIR) && terraform init -input=false && terraform plan -out=tfplan && terraform apply tfplan
-	@echo "==> [2/7] Configurando kubeconfig (contexto: $(EKS_CONTEXT))..."
-	aws eks update-kubeconfig --name $(EKS_CLUSTER_NAME) --region $(AWS_REGION) --alias $(EKS_CONTEXT)
-	@echo "==> [3/7] Garantindo imagens customizadas no ECR (build só se faltar)..."
-	@AWS_REGION=$(AWS_REGION) bash scripts/ensure-images-eks.sh
-	@echo "==> [4/7] Instalando/atualizando ArgoCD..."
-	helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
-	helm repo update
-	@if helm status argocd -n argocd --kube-context=$(EKS_CONTEXT) >/dev/null 2>&1; then \
-		helm upgrade argocd argo/argo-cd -n argocd --kube-context=$(EKS_CONTEXT) -f bootstrap/argocd/install-values-eks.yaml --wait --timeout 5m; \
-	else \
-		helm install argocd argo/argo-cd -n argocd --kube-context=$(EKS_CONTEXT) --create-namespace -f bootstrap/argocd/install-values-eks.yaml --wait --timeout 5m; \
-	fi
-	@echo "==> [5/7] Aplicando app-of-apps (única exceção não-GitOps: bootstrap do próprio ArgoCD)..."
-	kubectl --context=$(EKS_CONTEXT) apply -n argocd -f apps/eks/app-of-apps.yaml
-	@echo "==> [6/7] Aguardando todas as Applications ficarem Synced/Healthy..."
-	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/wait-argocd-healthy.sh 1800 15 14
-	@echo "==> [7/7] Verificando buckets do MinIO (Synced/Healthy nao garante que Jobs de hook rodaram)..."
-	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/verify-minio-buckets.sh 300
+	@echo "==> [1/3] Terraform apply + kubeconfig..."
+	@$(MAKE) terraform-apply-eks
+	@echo "==> [2/3] Garantindo imagens customizadas no ECR (build só se faltar)..."
+	@$(MAKE) images-eks
+	@echo "==> [3/3] ArgoCD + app-of-apps..."
+	@$(MAKE) deploy-argocd-eks
 	@echo ""
 	@echo "=========================================="
 	@echo "Bootstrap EKS concluído!"

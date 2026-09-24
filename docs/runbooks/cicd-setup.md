@@ -77,7 +77,43 @@ Para desligar o CI por completo (sem reverter nada): aba **Actions** →
 selecionar o workflow → **Disable workflow**. O deploy manual
 (`make images-eks`) continua funcionando normalmente.
 
-## 5. Uso manual continua funcionando
+## 5. Criar/atualizar o cluster via CI (`infra-bootstrap.yml`)
+
+Faz o equivalente a `make bootstrap-eks`, mas disparado pelo GitHub
+Actions em vez de rodado localmente. Usa os mesmos Secrets da seção 1
+(sem usuário IAM dedicado, mesmo risco aceito ali).
+
+```bash
+gh workflow run infra-bootstrap.yml
+gh run watch
+```
+
+Ou pela aba **Actions**, botão "Run workflow". **Sem gate de
+aprovação** — o clique em "Run workflow" já é a confirmação (decisão do
+spec). Isso cria recursos AWS reais (~US$ 430/mês enquanto o cluster
+estiver de pé).
+
+Aparecem **3 jobs separados**, na ordem `terraform → build-images →
+deploy` (cada um só começa depois que o anterior termina com sucesso):
+
+1. **`terraform`** — `terraform apply` do cluster/VPC + configura o
+   kubeconfig do runner.
+2. **`build-images`** — garante as 3 imagens de aplicação no ECR
+   (builda só o que estiver faltando).
+3. **`deploy`** — instala/atualiza o ArgoCD, aplica o app-of-apps, e
+   espera todas as Applications ficarem Synced/Healthy (pode levar até
+   30 min).
+
+Cada job roda numa VM separada do GitHub — por isso o job `deploy`
+reconfigura o próprio kubeconfig no início, em vez de depender do que o
+job `terraform` gerou (não haveria como reaproveitar; VMs diferentes).
+
+**`terraform destroy` não está neste workflow** — continua manual e
+local, via `make destroy-eks`. Destruir o cluster por engano com um
+clique é mais perigoso do que criar por engano, então essa parte
+propositalmente não foi automatizada.
+
+## 6. Uso manual continua funcionando
 
 Nada neste spec muda o fluxo manual — só adiciona a automação por cima:
 
