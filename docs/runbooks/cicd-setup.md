@@ -27,12 +27,22 @@ mínima, essa é a única seção que muda.
    aws configure get aws_access_key_id | gh secret set AWS_ACCESS_KEY_ID
    aws configure get aws_secret_access_key | gh secret set AWS_SECRET_ACCESS_KEY
    ```
+3. Só para o `infra-bootstrap.yml` (seção 5): criar também `MINIO_LICENSE`
+   com a licença **AIStor Free** (JWT de [subnet.min.io](https://subnet.min.io)).
+   O job `deploy` a repassa ao `make deploy-argocd-eks`, que cria o Secret
+   `minio-eks-license` no cluster. Sem ela (e sem o Secret já existente no
+   cluster), o bootstrap falha com instruções.
+   ```bash
+   printf '%s' "$MINIO_LICENSE" | gh secret set MINIO_LICENSE
+   ```
 
 ## 2. Como os workflows funcionam
 
 Cada componente (`airflow-dags`, `api-service`, `metabase`) tem seu
 próprio workflow em `.github/workflows/`, todos chamando o reutilizável
-`_build-push-bump.yml`. Fluxo, no push em `main` que toca no path do
+`_build-push-bump.yml`. O `code/dbt-project/` **não** tem workflow próprio:
+ele vai dentro da imagem `airflow-dags`, e o workflow `airflow-dags.yml`
+também dispara em mudanças nele (e roda `dbt parse` antes do build). Fluxo, no push em `main` que toca no path do
 componente:
 
 1. Testes do componente (antes de publicar qualquer coisa).
@@ -41,6 +51,12 @@ componente:
 4. Commit automático (`github-actions[bot]`) atualizando a tag no
    manifesto do EKS correspondente, direto no `main`.
 5. O ArgoCD detecta o commit e sincroniza sozinho.
+
+O bump é o passo que liga o CI ao deploy: o `values.yaml`/manifesto sempre
+referencia o SHA exato da imagem, então sem esse commit a imagem nova ficaria
+só no ECR. O comando que edita o manifesto vem do input `manifest-bump-command`
+de cada workflow chamador; se ele sair vazio, o workflow publica a imagem e
+**não** atualiza o cluster.
 
 Esse commit automático **não** dispara um novo workflow (regra do
 GitHub: eventos gerados pelo `GITHUB_TOKEN` não retriggeram Actions),
@@ -71,7 +87,7 @@ git push origin main
 
 O ArgoCD sincroniza a tag anterior automaticamente — a imagem antiga
 continua no ECR (nada é apagado, a política de lifecycle só remove
-depois de acumular mais de 20 imagens).
+depois de acumular mais de 20 imagens por repositório).
 
 Para desligar o CI por completo (sem reverter nada): aba **Actions** →
 selecionar o workflow → **Disable workflow**. O deploy manual
@@ -90,8 +106,9 @@ gh run watch
 
 Ou pela aba **Actions**, botão "Run workflow". **Sem gate de
 aprovação** — o clique em "Run workflow" já é a confirmação (decisão do
-spec). Isso cria recursos AWS reais (~US$ 430/mês enquanto o cluster
-estiver de pé).
+spec). Isso cria recursos AWS reais (estimativa de ~US$ 490/mês com 4 nós
+t3.large, NAT e 6 LoadBalancers, enquanto o cluster estiver de pé — mesma
+estimativa do README; confira no Cost Explorer).
 
 Aparecem **3 jobs separados**, na ordem `terraform → build-images →
 deploy` (cada um só começa depois que o anterior termina com sucesso):
@@ -99,7 +116,8 @@ deploy` (cada um só começa depois que o anterior termina com sucesso):
 1. **`terraform`** — `terraform apply` do cluster/VPC + configura o
    kubeconfig do runner.
 2. **`build-images`** — garante as 3 imagens de aplicação no ECR
-   (builda só o que estiver faltando).
+   (`airflow-dags`, `api-service`, `metabase`; builda só o que estiver
+   faltando, lendo a tag dos manifestos).
 3. **`deploy`** — instala/atualiza o ArgoCD, aplica o app-of-apps, e
    espera todas as Applications ficarem Synced/Healthy (pode levar até
    30 min).
