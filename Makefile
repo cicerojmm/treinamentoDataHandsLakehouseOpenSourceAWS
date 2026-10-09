@@ -1,4 +1,4 @@
-.PHONY: bootstrap-local destroy-local argocd-password argocd-ui run-local \
+.PHONY: destroy-local argocd-password argocd-ui run-local \
 	check-prereqs-eks plan-eks images-eks terraform-apply-eks deploy-argocd-eks \
 	bootstrap-eks destroy-eks \
 	wait-eks verify-eks urls-eks argocd-password-eks argocd-ui-eks
@@ -9,53 +9,6 @@ KIND_CONFIG := infra/clusters/local/kind-config.yaml
 # ---------------------------------------------------------------------------
 # Local (kind)
 # ---------------------------------------------------------------------------
-
-bootstrap-local:
-	@echo "==> Verificando se o cluster já existe..."
-	@if kind get clusters 2>/dev/null | grep -q "^$(CLUSTER_NAME)$$"; then \
-		echo "Cluster $(CLUSTER_NAME) já existe, pulando criação..."; \
-	else \
-		echo "==> Criando cluster kind..."; \
-		kind create cluster --config $(KIND_CONFIG); \
-	fi
-	@echo "==> Aplicando namespaces..."
-	kubectl apply -f bootstrap/namespaces.yaml
-	@echo "==> Instalando/atualizando aistor-objectstore-operator..."
-	bash bootstrap/minio-aistor-operator/ensure-license-secret.sh minio-local-license data-platform
-	helm repo add minio-helm https://helm.min.io/ 2>/dev/null || true
-	helm repo update minio-helm
-	helm upgrade --install aistor-objectstore-operator minio-helm/aistor-objectstore-operator \
-		--namespace data-platform \
-		-f bootstrap/minio-aistor-operator/install-values.yaml \
-		--set license="$$(kubectl get secret minio-local-license -n data-platform -o jsonpath='{.data.minio\.license}' | base64 -d)" \
-		--wait
-	@echo "==> Criando ecr-pull-secret..."
-	bash bootstrap/ecr-auth/local-ecr-secret.sh
-	@echo "==> Adicionando repo Helm do ArgoCD..."
-	helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
-	helm repo update
-	@echo "==> Instalando ArgoCD..."
-	@if helm status argocd -n argocd >/dev/null 2>&1; then \
-		echo "ArgoCD já instalado, atualizando..."; \
-		helm upgrade argocd argo/argo-cd -n argocd -f bootstrap/argocd/install-values-local.yaml --wait; \
-	else \
-		helm install argocd argo/argo-cd -n argocd -f bootstrap/argocd/install-values-local.yaml --wait; \
-	fi
-	@echo "==> Aguardando ArgoCD server ficar pronto..."
-	kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s
-	@echo "==> Aplicando app-of-apps..."
-	kubectl apply -f apps/local/app-of-apps.yaml
-	@echo ""
-	@echo "=========================================="
-	@echo "Bootstrap concluído!"
-	@echo "=========================================="
-	@echo ""
-	@echo "Para acessar a UI do ArgoCD:"
-	@echo "  make argocd-ui"
-	@echo ""
-	@echo "Para obter a senha do admin:"
-	@echo "  make argocd-password"
-	@echo ""
 
 destroy-local:
 	@echo "==> Deletando cluster $(CLUSTER_NAME)..."
@@ -74,7 +27,8 @@ argocd-ui:
 	kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 # Roda igual em qualquer maquina (notebook, EC2, qualquer lugar): git pull
-# + bootstrap-local + espera tudo ficar Synced/Healthy. Ver scripts/run-local.sh.
+# + verifica/instala pre-requisitos + sobe kind/ArgoCD + espera tudo ficar
+# Synced/Healthy. Ver scripts/run-local.sh.
 run-local:
 	@bash scripts/run-local.sh
 
@@ -120,6 +74,7 @@ terraform-apply-eks: check-prereqs-eks
 deploy-argocd-eks: check-prereqs-eks
 	@echo "==> Configurando kubeconfig (contexto: $(EKS_CONTEXT))..."
 	aws eks update-kubeconfig --name $(EKS_CLUSTER_NAME) --region $(AWS_REGION) --alias $(EKS_CONTEXT)
+
 	@echo "==> Instalando/atualizando ArgoCD..."
 	helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
 	helm repo update
@@ -128,10 +83,13 @@ deploy-argocd-eks: check-prereqs-eks
 	else \
 		helm install argocd argo/argo-cd -n argocd --kube-context=$(EKS_CONTEXT) --create-namespace -f bootstrap/argocd/install-values-eks.yaml --wait --timeout 5m; \
 	fi
+
 	@echo "==> Garantindo namespace data-platform (precisa existir antes do secret da licenca)..."
 	kubectl --context=$(EKS_CONTEXT) create namespace data-platform --dry-run=client -o yaml | kubectl --context=$(EKS_CONTEXT) apply -f -
 	@echo "==> Instalando/atualizando aistor-objectstore-operator..."
+
 	KUBE_CONTEXT=$(EKS_CONTEXT) bash bootstrap/minio-aistor-operator/ensure-license-secret.sh minio-eks-license data-platform
+	
 	helm repo add minio-helm https://helm.min.io/ 2>/dev/null || true
 	helm repo update minio-helm
 	helm upgrade --install aistor-objectstore-operator minio-helm/aistor-objectstore-operator \
@@ -139,8 +97,10 @@ deploy-argocd-eks: check-prereqs-eks
 		-f bootstrap/minio-aistor-operator/install-values.yaml \
 		--set license="$$(kubectl --context=$(EKS_CONTEXT) get secret minio-eks-license -n data-platform -o jsonpath='{.data.minio\.license}' | base64 -d)" \
 		--wait
+
 	@echo "==> Aplicando app-of-apps (única exceção não-GitOps: bootstrap do próprio ArgoCD)..."
 	kubectl --context=$(EKS_CONTEXT) apply -n argocd -f apps/eks/app-of-apps.yaml
+	
 	@echo "==> Aguardando todas as Applications ficarem Synced/Healthy..."
 	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/wait-argocd-healthy.sh 1800 15 19
 	@echo "==> Verificando buckets do MinIO (Synced/Healthy nao garante que Jobs de hook rodaram)..."
