@@ -5,11 +5,25 @@ Plataforma de dados moderna em Kubernetes usando ferramentas open source.
 ## Arquitetura
 
 ```
-Airbyte → Airflow → MinIO → dbt + Trino → API (DuckDB) → Metabase
-                                        ↘ Spark + Iceberg
+Postgres (sample) → Airbyte → s3://bronze (Parquet raw)
+                                  ↓
+Airflow → Trino (hive_bronze) → dbt → s3://warehouse (Iceberg)
+                                       ├── staging/ (efêmero)
+                                       ├── silver/  (tabelas)
+                                       └── gold/    (tabelas)
+                                  ↓
+                      API (FastAPI + DuckDB) ← lê gold
+                      Metabase ← conecta via Trino
+
+Grafana + OpenMetadata: observabilidade e governança (transversal)
 ```
 
-Componentes de suporte: Grafana, OpenMetadata, Great Expectations
+- **Storage:** MinIO (via AIStor) em todos os ambientes, com os buckets
+  `bronze`, `warehouse`, `silver`, `gold` e `airbyte-storage`.
+- **Catálogo Iceberg (Trino):** JDBC Catalog com PostgreSQL dedicado.
+- **Orquestração:** DAG `dbt_movielens` (Airflow + Cosmos) cria as external
+  tables no `hive_bronze` e executa o dbt.
+- **Deploy:** GitOps com ArgoCD, local (`kind`) ou EKS (Kubernetes 1.36).
 
 ## Pré-requisitos
 
@@ -22,11 +36,12 @@ Componentes de suporte: Grafana, OpenMetadata, Great Expectations
   as imagens customizadas vêm do ECR privado, inclusive no local
 
 **EKS (adicional):**
-- Terraform 1.5+
+- Terraform 1.10+
 
-Numa máquina Ubuntu nova (notebook, EC2 recém-criada, WSL — o script não
-tem nada específico de EC2, funciona em qualquer Ubuntu), instale tudo
-isso de uma vez com `bash scripts/ec2-bootstrap.sh`.
+Numa máquina Ubuntu/Debian, o `make run-local` verifica esses
+pré-requisitos e, se faltar algum, roda `scripts/ec2-bootstrap.sh` para
+instalá-los (também dá para rodá-lo manualmente). Em outros sistemas,
+instale à mão.
 
 ## Quick Start (Local)
 
@@ -38,17 +53,17 @@ desde que o repo esteja clonado ali.
 ```bash
 git clone https://github.com/cicerojmm/treinamentoDataHandsLakehouseOpenSourceAWS.git
 cd treinamentoDataHandsLakehouseOpenSourceAWS
-
-bash scripts/ec2-bootstrap.sh
 ```
-Instala Docker, kubectl, kind, Helm, AWS CLI v2 e Terraform. Não é
-específico de EC2 — roda igual num notebook Ubuntu.
 
-O script te adiciona ao grupo `docker`, mas isso só vale numa sessão
-nova. Saia e volte a entrar (ou `newgrp docker`) antes de continuar:
+O `make run-local` (abaixo) detecta o que falta e chama
+`scripts/ec2-bootstrap.sh`, que instala Docker, kubectl, kind, Helm,
+AWS CLI v2 e Terraform. Se quiser instalar antes, rode
+`bash scripts/ec2-bootstrap.sh` manualmente. Não é específico de EC2.
+
+Se o Docker for instalado nessa hora, o usuário é adicionado ao grupo
+`docker`, mas isso só vale numa sessão nova. O `run-local` avisa e para;
+saia e volte a entrar (ou `newgrp docker`) e rode de novo:
 ```bash
-exit
-# reabra o terminal, ou reconecte via SSH se for uma máquina remota
 docker ps   # confirma que funciona sem sudo
 ```
 
@@ -64,7 +79,7 @@ aws sts get-caller-identity
 Pegue uma licença **AIStor Free** (single-node, gratuita) em
 [subnet.min.io](https://subnet.min.io) — desde 2026-09 a MinIO Inc.
 trancou pull anônimo das imagens legadas e o servidor exige licença
-pra operações S3. `make run-local`/`bootstrap-local` cria o Secret
+pra operações S3. `make run-local` cria o Secret
 sozinho (nunca commitado no Git) — configure uma vez e esqueça:
 ```bash
 # ~/.bashrc ou ~/.zshrc
@@ -77,16 +92,14 @@ com instruções se nenhum dos dois estiver disponível.
 ### Subir a plataforma
 
 ```bash
-# git pull + sobe o cluster kind + ArgoCD + espera tudo ficar Synced/Healthy
+# verifica/instala pré-requisitos + git pull + sobe o cluster kind + ArgoCD
+# + espera todas as Applications ficarem Synced/Healthy
 make run-local
 ```
 
-Comandos individuais (o que `make run-local` já orquestra):
+Comandos auxiliares:
 
 ```bash
-# Subir o cluster e ArgoCD (sem git pull nem espera de health)
-make bootstrap-local
-
 # Acessar UI do ArgoCD (http://localhost:8080)
 make argocd-ui
 
@@ -110,44 +123,21 @@ kubectl port-forward -n governance svc/openmetadata 8585:8585
 
 ### Rodando numa máquina remota (ex: EC2)
 
-**EC2 nova, do zero:** conecte por SSH e siga a seção "Máquina Ubuntu
-nova" acima — `ec2-bootstrap.sh` funciona igual numa instância recém-criada.
+Conecte por SSH, clone o repo e rode `make run-local` lá dentro (seção
+"Máquina Ubuntu nova" acima — ele instala o que faltar):
 ```bash
 ssh -i ~/caminho/para/sua-chave.pem ubuntu@<ip-da-instancia>
-```
-
-**Reaproveitando uma instância já configurada:** este projeto já teve
-uma instância dedicada para isso (`data-platform-os`, `t3a.2xlarge`,
-região `us-east-2`), hoje parada e sem Elastic IP — o IP público muda a
-cada `start`. Para reativar e usar (pré-requisitos e credenciais AWS já
-instalados/configurados de uma vez anterior):
-
-```bash
-# 1. Iniciar a instância e pegar o IP público atual
-aws ec2 start-instances --region us-east-2 --instance-ids i-0de2b9ce8d797f0ac
-aws ec2 describe-instances --region us-east-2 --instance-ids i-0de2b9ce8d797f0ac \
-  --query 'Reservations[0].Instances[0].PublicIpAddress' --output text
-
-# 2. Entrar por SSH e rodar make run-local lá dentro
-ssh -i ~/caminho/para/sua-chave.pem ubuntu@<ip-retornado>
 cd treinamentoDataHandsLakehouseOpenSourceAWS && make run-local
 ```
 
-Em qualquer um dos dois casos: por decisão do projeto, **não abrimos o
-Security Group** para expor as UIs na internet. Acesse via túnel SSH,
-numa outra aba (depois do `make run-local` terminar):
+Por decisão do projeto, **não abrimos o Security Group** para expor as UIs
+na internet. Acesse via túnel SSH, numa outra aba (depois do
+`make run-local` terminar):
 
 ```bash
 ssh -i ~/caminho/para/sua-chave.pem \
   -L 8080:localhost:8080 -L 8001:localhost:8001 \
   ubuntu@<ip-da-instancia>
-```
-
-Para desligar a instância e economizar quando não estiver em uso
-(só se aplica à instância reaproveitável `data-platform-os`; uma EC2
-nova criada do zero você gerencia/destrói do seu jeito):
-```bash
-aws ec2 stop-instances --region us-east-2 --instance-ids i-0de2b9ce8d797f0ac
 ```
 
 ## Quick Start (EKS)
@@ -204,6 +194,11 @@ make wait-eks                # só espera as Applications ficarem Synced/Healthy
 make destroy-eks
 ```
 
+Os 6 LoadBalancers (NLB, `internet-facing`, HTTP, sem TLS) expõem Airflow,
+Airbyte, Metabase, OpenMetadata, Grafana e API publicamente; a proteção é
+só o login de cada ferramenta (e o `X-API-Key` na API). Restrinja o acesso
+por IP se for deixar o cluster no ar.
+
 Trino e MinIO não têm LoadBalancer (decisão do projeto) — acesse via
 `kubectl port-forward`, com o contexto `data-platform-eks`:
 ```bash
@@ -211,8 +206,8 @@ kubectl --context=data-platform-eks port-forward -n query-engine svc/trino 8080:
 kubectl --context=data-platform-eks port-forward -n data-platform svc/minio-eks-console 9090:9090
 ```
 
-A conexão do Airbyte (Postgres de exemplo → bucket `bronze`) é manual,
-veja `docs/runbooks/airbyte-eks-setup.md`.
+A conexão do Airbyte (Postgres de exemplo → `s3://bronze/movielens/`, em
+`full_refresh_overwrite`) é manual; veja `docs/runbooks/airbyte-eks-setup.md`.
 
 ### Local x EKS usam contextos `kubectl` diferentes
 
@@ -236,10 +231,29 @@ bootstrap/argocd/            # Instalação do ArgoCD (local e eks)
 apps/local/                  # Applications do ArgoCD (ambiente local)
 apps/eks/                    # Applications do ArgoCD (ambiente EKS)
 charts/                      # Values/manifests para os charts Helm (local e *-eks)
-code/                        # Código próprio (dbt, airflow-dags, api-service, metabase)
-scripts/                     # Scripts de bootstrap/deploy (run-local, ensure-images-eks, ...)
-docs/runbooks/               # Passo a passo de configurações manuais (ex: Airbyte)
+code/                        # Código próprio (dbt-project, airflow-dags, api-service, metabase)
+.github/workflows/           # CI/CD (build/push de imagens + bump do manifesto; infra-bootstrap)
+scripts/                     # Scripts de bootstrap/deploy (run-local, ec2-bootstrap, ensure-images-eks, ...)
+docs/runbooks/               # Passo a passo de configurações manuais (Airbyte, CI/CD, Metabase, OpenMetadata)
 ```
+
+## CI/CD
+
+GitHub Actions publica as imagens no ECR (`data-platform/<serviço>`),
+com tag igual ao SHA curto do commit (nunca `latest`), e atualiza o
+manifesto com essa tag num commit de bump — é isso que o ArgoCD sincroniza.
+
+| Workflow | Dispara em | O que faz |
+|---|---|---|
+| `airflow-dags.yml` | push em `code/airflow-dags/**` ou `code/dbt-project/**` | roda `dbt parse`, builda e publica a imagem `airflow-dags` (que inclui o dbt) |
+| `api-service.yml` | push em `code/api-service/**` | testes, build e publicação da imagem `api-service` |
+| `metabase.yml` | push em `code/metabase/**` | build e publicação da imagem `metabase` |
+| `infra-bootstrap.yml` | manual (`workflow_dispatch`) | Terraform + imagens + ArgoCD no EKS |
+
+Os três primeiros usam o workflow reutilizável `_build-push-bump.yml`.
+Secrets necessários no GitHub: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+e `MINIO_LICENSE` (este só no `infra-bootstrap`). Passo a passo em
+`docs/runbooks/cicd-setup.md`.
 
 ## GitOps
 
