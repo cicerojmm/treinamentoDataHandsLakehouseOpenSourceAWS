@@ -49,3 +49,15 @@ KUBE_CONTEXT=data-platform-eks bash scripts/verify-seaweedfs-buckets.sh 60
 - PVC `Pending`: `kubectl get sc` (local `standard`, EKS `gp3`) e `kubectl describe pvc`.
 - Job `seaweedfs-create-buckets` falhando: `kubectl logs -n data-platform job/seaweedfs-create-buckets`; o initContainer espera `seaweedfs-s3:8333`.
 - `ImagePullBackOff`: imagem `chrislusf/seaweedfs:4.48` vem do Docker Hub (rate limit) — espelhar no ECR é spec futuro.
+
+## Conexão Airbyte → SeaweedFS (bronze/movielens)
+Cria source, destination (SeaweedFS) e connection (`movies`, `ratings`,
+`links`, `tags`; sempre `full_refresh_overwrite`, Parquet/SNAPPY, manual) via
+API pública do Airbyte. Idempotente (reaproveita o que já existe pelo nome):
+```bash
+KUBE_CONTEXT=data-platform-eks bash scripts/airbyte-seaweedfs-connection.sh --sync
+```
+Destino: `s3://bronze/movielens/<tabela>/` **no SeaweedFS** (a conexão para o
+MinIO, descrita em `airbyte-eks-setup.md`, continua existindo à parte).
+Pré-requisitos: Apps `seaweedfs`, `seaweedfs-setup`, `airbyte` e
+`postgres-all` Synced/Healthy.
