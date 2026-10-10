@@ -102,9 +102,11 @@ deploy-argocd-eks: check-prereqs-eks
 	kubectl --context=$(EKS_CONTEXT) apply -n argocd -f apps/eks/app-of-apps.yaml
 	
 	@echo "==> Aguardando todas as Applications ficarem Synced/Healthy..."
-	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/wait-argocd-healthy.sh 1800 15 19
+	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/wait-argocd-healthy.sh 1800 15 21
 	@echo "==> Verificando buckets do MinIO (Synced/Healthy nao garante que Jobs de hook rodaram)..."
 	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/verify-minio-buckets.sh 300
+	@echo "==> Verificando buckets do SeaweedFS..."
+	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/verify-seaweedfs-buckets.sh 300
 
 bootstrap-eks: check-prereqs-eks
 	@if [ "$(CONFIRM)" != "yes" ]; then \
@@ -156,6 +158,7 @@ wait-eks:
 
 verify-eks:
 	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/verify-minio-buckets.sh 60
+	@KUBE_CONTEXT=$(EKS_CONTEXT) bash scripts/verify-seaweedfs-buckets.sh 60
 
 urls-eks:
 	@echo "URLs das aplicações (LoadBalancer NLB):"

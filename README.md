@@ -204,7 +204,13 @@ Trino e MinIO não têm LoadBalancer (decisão do projeto) — acesse via
 ```bash
 kubectl --context=data-platform-eks port-forward -n query-engine svc/trino 8080:8080
 kubectl --context=data-platform-eks port-forward -n data-platform svc/minio-eks-console 9090:9090
+kubectl --context=data-platform-eks port-forward -n data-platform svc/seaweedfs-s3 8333:8333   # SeaweedFS (S3)
 ```
+
+**SeaweedFS (SPEC-018):** roda em paralelo ao MinIO, no mesmo namespace, com
+os buckets `bronze` e `warehouse` (nomes iguais aos do MinIO, endpoint e
+credenciais diferentes). Nenhum consumidor usa ele ainda — a migração é
+incremental. Veja `docs/runbooks/seaweedfs-setup.md`.
 
 A conexão do Airbyte (Postgres de exemplo → `s3://bronze/movielens/`, em
 `full_refresh_overwrite`) é manual; veja `docs/runbooks/airbyte-eks-setup.md`.

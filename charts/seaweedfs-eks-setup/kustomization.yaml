@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - create-buckets-job.yaml
+
+# ConfigMap e' recurso normal (nao hook): numa app nova ele deixa a
+# Application OutOfSync, o que dispara o auto-sync e roda o Job (hook).
+# Mudar a lista de buckets aqui re-dispara o Job automaticamente.
+configMapGenerator:
+  - name: seaweedfs-setup-config
+    namespace: data-platform
+    literals:
+      - buckets=bronze warehouse
+
+generatorOptions:
+  disableNameSuffixHash: true

@@ -1,0 +1,87 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seaweedfs
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://seaweedfs.github.io/seaweedfs/helm
+    chart: seaweedfs
+    targetRevision: 4.48.0
+    helm:
+      values: |
+        # SPEC-018: SeaweedFS coexistindo com o MinIO (mesmo namespace).
+        # Gateway S3 dedicado (Deployment seaweedfs-s3:8333); metadados do
+        # filer em leveldb2 num PVC. Imagem de terceiros: Docker Hub, tag fixa.
+        image:
+          repository: chrislusf/seaweedfs
+          tag: "4.48"
+        master:
+          replicas: 1
+          data:
+            type: persistentVolumeClaim
+            size: 5Gi
+            storageClass: standard
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+        volume:
+          replicas: 1
+          dataDirs:
+            - name: data1
+              type: persistentVolumeClaim
+              size: 20Gi
+              storageClass: standard
+              maxVolumes: 0
+          resources:
+            requests:
+              cpu: 20m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+        filer:
+          replicas: 1
+          data:
+            type: persistentVolumeClaim
+            size: 5Gi
+            storageClass: standard
+          s3:
+            enabled: false
+          resources:
+            requests:
+              cpu: 20m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+        s3:
+          enabled: true
+          port: 8333
+          enableAuth: true
+          credentials:
+            admin:
+              accessKey: cKwmlj20sus3RKtxF17X
+              secretKey: OrLOxQgnyOcEfTWGWuNNt46JcN5bMA8wCrLMOsiU
+            read:
+              accessKey: jpdXMdWEztjumMkukxQA
+              secretKey: v0dcwHGLTwA7SKKdn9te3A5Q9lAOLAJfOdGVR79x
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data-platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
